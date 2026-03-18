@@ -65,13 +65,18 @@ A API estará em `http://localhost:3000`. Swagger em `http://localhost:3000/api-
 
 ### Antes de commitar
 
-O **Husky** roda automaticamente em cada `git commit`:
+O **Husky** roda automaticamente:
 
+**Pre-commit** (em cada `git commit`):
 1. **lint-staged** executa em arquivos staged em `src/**/*.ts`:
    - ESLint com `--fix`
    - Prettier com `--write`
 2. Se falhar, o commit é bloqueado. Corrija os erros e tente novamente.
-3. Se passar, o commit é concluído.
+
+**Pre-push** (em cada `git push`):
+1. **validate** — valida padrões do projeto (estrutura de módulos, sem console.log, etc.)
+2. **test** — executa a suíte de testes
+3. Se falhar, o push é bloqueado.
 
 Para validar manualmente antes de commitar:
 
@@ -84,11 +89,12 @@ npm run test
 
 Quando você faz `git push`, o **GitHub Actions** (CI) roda automaticamente **no GitHub** — não na sua máquina. Ele clona o repositório, instala dependências e executa:
 
-1. **Lint** — verifica se o código segue as regras
-2. **Prisma generate** — gera o client do banco
-3. **Migrations** — aplica migrações no PostgreSQL do CI
-4. **Testes** — roda a suíte de testes
-5. **Build** — compila o TypeScript
+1. **Lint** — verifica se o código segue as regras (ESLint)
+2. **Validate** — valida padrões do projeto (estrutura de módulos, sem console.log, aliases)
+3. **Prisma generate** — gera o client do banco
+4. **Migrations** — aplica migrações no PostgreSQL do CI
+5. **Testes** — roda a suíte de testes
+6. **Build** — compila o TypeScript
 
 Se tudo passar, o PR ou o push fica com status verde. Se algo falhar, o status fica vermelho e você pode ver o log em **Actions** no GitHub. Nesse caso: corrija o problema na sua máquina, commite e faça push de novo — o CI roda novamente.
 
@@ -176,6 +182,7 @@ Workflows acionáveis via `/` ou automaticamente quando relevantes:
 | `npm run test:coverage` | Testes com relatório de cobertura |
 | `npm run lint` | Verifica código com ESLint |
 | `npm run lint:fix` | ESLint com correção automática |
+| `npm run validate` | Valida padrões do projeto (estrutura, convenções) |
 | `npm run db:migrate` | Executa migrações Prisma |
 | `npm run db:studio` | Abre Prisma Studio |
 | `npm run db:generate` | Regenera Prisma Client |

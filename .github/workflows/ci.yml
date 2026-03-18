@@ -40,6 +40,9 @@ jobs:
       - name: Run lint
         run: npm run lint
 
+      - name: Validate project standards
+        run: npm run validate
+
       - name: Generate Prisma client
         run: npm run db:generate
 
