@@ -117,6 +117,15 @@ git push origin feat/nome-da-feature
 
 Use [Conventional Commits](https://www.conventionalcommits.org/): `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
 
+### Descrição do PR (com Cursor)
+
+Antes de criar o PR no GitHub, você pode pedir ao Cursor para gerar a descrição com base nas alterações:
+
+1. Faça commit das alterações
+2. No Cursor, peça: *"Gera uma descrição de PR para o branch atual comparado com main"*
+3. Copie a descrição gerada
+4. Dê push e, ao criar o PR no GitHub, cole a descrição no campo
+
 ---
 
 ## Desenvolvimento assistido (.cursor/)
