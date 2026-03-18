@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Padrões do Projeto CRM-AI Backend
 
-- Responder sempre em português, porém códigos sempre em inglês
+- Responder sempre em português, porém código sempre em ingles
 - Sem emojis nos comentários ou em qualquer trecho de código
 - Sem comentários que exponham a lógica, apenas explicativos e bem curtos
 - Stack: TypeScript, Express, Prisma, Vitest
