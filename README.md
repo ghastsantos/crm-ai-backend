@@ -115,6 +115,7 @@ git commit -m "feat(escopo): descrição"
 git push origin feat/nome-da-feature
 ```
 
+
 Use [Conventional Commits](https://www.conventionalcommits.org/): `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
 
 ---
