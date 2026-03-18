@@ -1,0 +1,14 @@
+---
+description: Padrões para testes
+globs: tests/**/*.ts
+alwaysApply: false
+---
+
+# Testes
+
+- Vitest + Supertest para integração
+- Testes em `tests/integration/` para endpoints; `tests/unit/` para funções isoladas
+- Importar `app` de `src/app.ts` para testes de integração (não iniciar servidor)
+- Nomenclatura: `*.test.ts`
+- Usar `describe` e `it`; assertions com `expect`
+- Rodar: `npm run test` ou `npm run test:coverage`

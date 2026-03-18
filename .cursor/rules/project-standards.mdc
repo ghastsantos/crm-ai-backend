@@ -1,0 +1,61 @@
+---
+description: Padrões gerais do projeto CRM-AI Backend
+alwaysApply: true
+---
+
+# Padrões do Projeto CRM-AI Backend
+
+- Responder sempre em português
+- Sem emojis nos comentários ou em qualquer trecho de código
+- Sem comentários que exponham a lógica, apenas explicativos e bem curtos
+- Stack: TypeScript, Express, Prisma, Vitest
+- Estrutura feature-based em `src/modules/` (cada módulo: routes, controller, service)
+- Formato de resposta API: `{ success, data?, error? }`
+- Erros via `AppError` e `ValidationError` em `src/shared/errors/`
+- Path aliases: `@/config`, `@/shared`, `@/modules`, etc.
+- Controllers finos: apenas recebem request, chamam service, retornam response
+- Lógica de negócio em services
+- Referência: `src/modules/health/` e `src/modules/test/` como exemplos canônicos
+
+## Segurança e ambiente
+
+- Nunca hardcodar secrets, URLs ou chaves — usar variáveis de ambiente via `@/config/env`
+- Não commitar `.env` — está no `.gitignore`
+
+## Validação de entrada
+
+- Validar body, query e params com Zod em todas as rotas que recebem input
+- Rejeitar na borda (controller ou middleware) antes de chamar o service
+
+## Logging
+
+- Usar `logger` de `@/config/logger` em vez de `console.log`
+- Em erros: `logger.error({ err }, 'mensagem')`
+
+## Tipos
+
+- Evitar `any`; preferir tipos explícitos ou `unknown` quando necessário
+- Tipar retornos de funções async
+
+## Async/await
+
+- Preferir `async/await` em vez de `.then()`
+- Em handlers async, usar `try/catch` e repassar erros com `next(err)` ou lançar `AppError`
+
+## Versionamento da API
+
+- Manter prefixo `/api/v1/` em todas as rotas de negócio
+- `/health` e `/api-docs` fora do versionamento
+
+## Comandos principais
+
+- `npm run dev` — desenvolvimento
+- `npm run test` — testes
+- `npm run lint` — lint
+- `npm run db:migrate` — migrações
+
+## Nomenclatura
+
+- Arquivos: kebab-case (`health.controller.ts`)
+- Variáveis/funções: camelCase
+- Types/interfaces: PascalCase

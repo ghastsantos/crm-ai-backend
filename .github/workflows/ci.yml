@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: crm
+          POSTGRES_PASSWORD: crm
+          POSTGRES_DB: crm_ai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U crm -d crm_ai"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Run migrations
+        run: npm run db:migrate
+        env:
+          DATABASE_URL: postgresql://crm:crm@localhost:5432/crm_ai?schema=public
+
+      - name: Run tests
+        run: npm run test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://crm:crm@localhost:5432/crm_ai?schema=public
+          CORS_ORIGINS: http://localhost:3000
+
+      - name: Build
+        run: npm run build
