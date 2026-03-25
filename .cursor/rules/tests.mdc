@@ -6,6 +6,7 @@ alwaysApply: false
 
 # Testes
 
+- Ao criar ao alterar testes utilizar sempre o agent `test-specialist.md`
 - Vitest + Supertest para integração
 - Testes em `tests/integration/` para endpoints; `tests/unit/` para funções isoladas
 - Importar `app` de `src/app.ts` para testes de integração (não iniciar servidor)
