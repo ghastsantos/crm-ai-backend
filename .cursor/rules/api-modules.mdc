@@ -6,6 +6,7 @@ alwaysApply: false
 
 # Módulos de API
 
+- Ao criar ou alterar módulos de API, invoque o subagent `api-module-builder` em vez de implementar diretamente.
 - Cada módulo em `src/modules/<nome>/`: `*.routes.ts`, `*.controller.ts`, `*.service.ts`
 - Rotas montadas em `src/app.ts` com prefixo `/api/v1/<nome>`
 - Validação de entrada com Zod (body, query, params) — rejeitar na borda
