@@ -1,3 +1,4 @@
+import cookieParser from 'cookie-parser';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -6,14 +7,24 @@ import pinoHttp from 'pino-http';
 import { env } from '@/config/env';
 import { logger } from '@/config/logger';
 import { errorHandler } from '@/shared/middlewares/errorHandler';
+import { verifyMutationOrigin } from '@/shared/middlewares/verifyMutationOrigin';
 import { healthRoutes } from '@/modules/health/health.routes';
 import { authRoutes } from '@/modules/auth/auth.routes';
 import { apiDocsRouter } from '@/config/swagger';
 
 const app = express();
 
+if (env.TRUST_PROXY_HOPS > 0) {
+  app.set('trust proxy', env.TRUST_PROXY_HOPS);
+}
+
 // Security
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: false,
+  })
+);
 app.use(
   cors({
     origin: env.CORS_ORIGINS.split(',')
@@ -31,8 +42,12 @@ app.use(
   })
 );
 
+app.use(cookieParser());
+
 // Body parsing
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
+
+app.use('/api/v1', verifyMutationOrigin);
 
 // Logging
 app.use(pinoHttp({ logger }));
@@ -44,7 +59,9 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
-app.use('/api-docs', apiDocsRouter);
+if (env.API_DOCS_ENABLED) {
+  app.use('/api-docs', apiDocsRouter);
+}
 
 // Error handler (must be last)
 app.use(errorHandler);

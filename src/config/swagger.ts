@@ -3,6 +3,13 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { Router } from 'express';
 
+/** Em `dist/`, só existem `*.routes.js`; em `src/` (ts-node), `*.routes.ts`. */
+function routeFilesGlobForSwagger(): string {
+  const runningFromDist = __dirname.includes(`${path.sep}dist${path.sep}`);
+  const ext = runningFromDist ? 'js' : 'ts';
+  return path.join(__dirname, '..', 'modules', '**', `*.routes.${ext}`);
+}
+
 const options: swaggerJsdoc.Options = {
   definition: {
     openapi: '3.0.0',
@@ -28,10 +35,16 @@ const options: swaggerJsdoc.Options = {
           scheme: 'bearer',
           bearerFormat: 'JWT',
         },
+        cookieAuth: {
+          type: 'apiKey',
+          in: 'cookie',
+          name: 'crm_access_token',
+          description: 'HTTP-only session cookie (set on login/register when enabled)',
+        },
       },
     },
   },
-  apis: [path.join(__dirname, '../modules/**/*.routes.ts')],
+  apis: [routeFilesGlobForSwagger()],
 };
 
 const spec = swaggerJsdoc(options);

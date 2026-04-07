@@ -29,6 +29,7 @@ export interface UserWithMemberships extends PublicUser {
 
 function signToken(userId: string, email: string): string {
   const options: SignOptions = {
+    algorithm: 'HS256',
     expiresIn: env.JWT_EXPIRES_IN as SignOptions['expiresIn'],
   };
   return jwt.sign({ sub: userId, email }, env.JWT_SECRET, options);

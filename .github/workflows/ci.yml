@@ -2,9 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, develop]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build-and-test:
@@ -12,6 +19,7 @@ jobs:
     env:
       JWT_SECRET: ci-jwt-secret-must-be-32-chars-min!!
       JWT_EXPIRES_IN: 7d
+      API_DOCS_ENABLED: 'true'
 
     services:
       postgres:
