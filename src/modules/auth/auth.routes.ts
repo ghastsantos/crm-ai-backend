@@ -86,12 +86,25 @@ authRoutes.post('/login', authWriteLimiter, asyncHandler(authController.postLogi
 
 /**
  * @openapi
+ * /api/v1/auth/logout:
+ *   post:
+ *     summary: Clear session cookie
+ *     tags: [Auth]
+ *     responses:
+ *       204:
+ *         description: Logged out
+ */
+authRoutes.post('/logout', asyncHandler(authController.postLogout));
+
+/**
+ * @openapi
  * /api/v1/auth/me:
  *   get:
  *     summary: Current user
  *     tags: [Auth]
  *     security:
  *       - bearerAuth: []
+ *       - cookieAuth: []
  *     responses:
  *       200:
  *         description: Current user and memberships

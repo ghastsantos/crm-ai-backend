@@ -61,6 +61,49 @@ describe.skipIf(!process.env.DATABASE_URL)('Auth flow with database', () => {
     expect(me.body.data.memberships[0].role).toBe('OWNER');
   });
 
+  it('authenticates /me via HTTP-only cookie when Authorization is omitted', async () => {
+    const id = randomUUID();
+    const email = `cookie-${id}@example.com`;
+    const password = 'password123';
+
+    await request(app).post('/api/v1/auth/register').send({
+      email,
+      password,
+      name: 'Cookie User',
+      organizationName: 'Cookie Org',
+    });
+
+    const agent = request.agent(app);
+    const login = await agent.post('/api/v1/auth/login').send({ email, password });
+    expect(login.status).toBe(200);
+    expect(login.headers['set-cookie']).toBeDefined();
+
+    const me = await agent.get('/api/v1/auth/me');
+    expect(me.status).toBe(200);
+    expect(me.body.data.email).toBe(email);
+  });
+
+  it('POST /logout clears session cookie', async () => {
+    const id = randomUUID();
+    const email = `logout-${id}@example.com`;
+    const password = 'password123';
+
+    await request(app).post('/api/v1/auth/register').send({
+      email,
+      password,
+      name: 'Logout User',
+      organizationName: 'Logout Org',
+    });
+
+    const agent = request.agent(app);
+    await agent.post('/api/v1/auth/login').send({ email, password });
+    const out = await agent.post('/api/v1/auth/logout');
+    expect(out.status).toBe(204);
+
+    const me = await agent.get('/api/v1/auth/me');
+    expect(me.status).toBe(401);
+  });
+
   it('returns 409 when email already registered', async () => {
     const id = randomUUID();
     const email = `dup-${id}@example.com`;
