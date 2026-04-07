@@ -5,6 +5,14 @@ alwaysApply: true
 
 # Padrões do Projeto CRM-AI Backend
 
+## Uso de skills (IA)
+
+- **PostgreSQL e SQL**: ao alterar ou revisar schema relacional, índices, queries cruas (`$queryRaw` / `$executeRaw`), performance ou integridade — usar a skill **postgres-expert** (`.cursor/skills/postgres-expert`).
+- **Prisma (schema e migrações)**: workflow e convenções — skill **run-migration**; para modelagem/migrações, preferir o agent **prisma-specialist** (`.cursor/agents/prisma-specialist.md`).
+- **Node.js / TypeScript / APIs / Express**: revisão de código backend, segurança, async, tipagem — skill **nodejs-expert** (`.cursor/skills/nodejs-expert`).
+
+Essas skills complementam as regras deste arquivo; em caso de conflito, prevalece o que está em `.cursor/rules/` do CRM-AI Backend.
+
 - Responder sempre em português, porém código sempre em ingles
 - Sem emojis nos comentários ou em qualquer trecho de código
 - Sem comentários que exponham a lógica, apenas explicativos e bem curtos
@@ -15,7 +23,7 @@ alwaysApply: true
 - Path aliases: `@/config`, `@/shared`, `@/modules`, etc.
 - Controllers finos: apenas recebem request, chamam service, retornam response
 - Lógica de negócio em services
-- Referência: `src/modules/health/` e `src/modules/test/` como exemplos canônicos
+- Referência: `src/modules/health/` e `src/modules/auth/` como exemplos canônicos
 
 ## Segurança e ambiente
 
@@ -52,7 +60,8 @@ alwaysApply: true
 - `npm run dev` — desenvolvimento
 - `npm run test` — testes
 - `npm run lint` — lint
-- `npm run db:migrate` — migrações
+- `npm run db:migrate` — migrações (desenvolvimento)
+- `npm run db:deploy` — aplicar migrações pendentes (CI / produção)
 
 ## Nomenclatura
 

@@ -6,10 +6,11 @@ alwaysApply: false
 
 # Prisma e Database
 
-- Ao realizar alterações no banco via prisma, utilizar o agent `prima-specialist.md`
+- Alterações de schema e fluxo de migração: agent **prisma-specialist** (`.cursor/agents/prisma-specialist.md`); skill **run-migration** para o passo a passo.
+- Tuning PostgreSQL, índices, `$queryRaw`, `EXPLAIN`, tipos JSONB, transações pesadas: skill **postgres-expert** (`.cursor/skills/postgres-expert`).
 - Schema em `prisma/schema.prisma` na raiz (convenção oficial)
 - Models em camelCase (PascalCase para nomes de model)
 - Usar singleton em `src/infrastructure/database/prisma.ts` — nunca instanciar PrismaClient diretamente
-- Migrações: `npm run db:migrate` (não criar SQL manualmente; usar `prisma migrate dev`)
+- Migrações: `npm run db:migrate` (não editar SQL manualmente nas pastas de migração; usar `prisma migrate dev`)
 - Gerar client após alterar schema: `npm run db:generate`
-- Referência: `prisma/schema.prisma` e modelo `HealthCheck`
+- Referência: `prisma/schema.prisma` e migrações em `prisma/migrations/`

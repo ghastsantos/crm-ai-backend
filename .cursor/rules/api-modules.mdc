@@ -12,4 +12,4 @@ alwaysApply: false
 - Validação de entrada com Zod (body, query, params) — rejeitar na borda
 - Controllers: recebem req/res, chamam service, retornam `{ success, data }` ou lançam AppError
 - Documentar endpoints com JSDoc OpenAPI (`@openapi`) para Swagger
-- Referência: `src/modules/health/` e `src/modules/test/`
+- Referência: `src/modules/health/` e `src/modules/auth/`
