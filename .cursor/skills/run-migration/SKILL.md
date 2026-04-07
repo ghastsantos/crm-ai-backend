@@ -21,7 +21,8 @@ description: Workflow para criar e executar migrações Prisma. Use ao alterar o
 ## Convenções
 
 - Nomes de migração em snake_case
-- Não editar SQL manualmente em `prisma/migrations/`
+- Não editar SQL manualmente em `prisma/migrations/` após gerado (correções = nova migração)
+- Para revisão de impacto no PostgreSQL (índices, tipos, performance), usar a skill **postgres-expert**
 - Para reset em dev: `npx prisma migrate reset` (apaga dados)
 
 ## Ambiente

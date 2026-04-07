@@ -13,14 +13,23 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000',
-        description: 'Development server',
+        url: '/',
+        description: 'Current host',
       },
     ],
     tags: [
       { name: 'Health', description: 'Health check endpoints' },
-      { name: 'Test', description: 'Test endpoints' },
+      { name: 'Auth', description: 'Authentication' },
     ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
   },
   apis: [path.join(__dirname, '../modules/**/*.routes.ts')],
 };

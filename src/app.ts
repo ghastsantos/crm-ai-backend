@@ -7,6 +7,7 @@ import { env } from '@/config/env';
 import { logger } from '@/config/logger';
 import { errorHandler } from '@/shared/middlewares/errorHandler';
 import { healthRoutes } from '@/modules/health/health.routes';
+import { authRoutes } from '@/modules/auth/auth.routes';
 import { apiDocsRouter } from '@/config/swagger';
 
 const app = express();
@@ -15,7 +16,9 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: env.CORS_ORIGINS?.split(',').map((o) => o.trim()) ?? '*',
+    origin: env.CORS_ORIGINS.split(',')
+      .map((o) => o.trim())
+      .filter((o) => o.length > 0),
     credentials: true,
   })
 );
@@ -40,6 +43,7 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/v1/health', healthRoutes);
+app.use('/api/v1/auth', authRoutes);
 app.use('/api-docs', apiDocsRouter);
 
 // Error handler (must be last)

@@ -1,6 +1,6 @@
 # CLAUDE.md — Contexto do Sistema para o Claude Code
 
-> Para detalhes técnicos completos, leia `ARCHITECTURE_NEW.md`.
+> Para detalhes técnicos completos, leia `./ARCHITECTURE_NEW.md`.
 
 ---
 
@@ -139,7 +139,7 @@ GREETING_ENABLED=true
 
 ## Regras obrigatórias de código
 
-1. **Uma responsabilidade por módulo** — cada arquivo faz UMA coisa
+1. **Uma responsabilidade por módulo** — cada diretório faz UMA coisa
 2. **Injeção de dependências** — passe serviços como parâmetros
 3. **Nomes descritivos** — `is_duplicate()`, não `chk()`
 4. **Funções pequenas** — ~20 linhas máximo
