@@ -81,6 +81,11 @@ model Deal {
   title          String
   stage          DealStage @default(LEAD)
   value          Decimal?  @db.Decimal(14, 2)
+  companyName    String?
+  contactName    String?
+  email          String?
+  phone          String?
+  notes          String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   organizationId String
