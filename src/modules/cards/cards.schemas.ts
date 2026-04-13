@@ -22,7 +22,12 @@ export const createCardBodySchema = z.object({
   notes: z.string().max(500).trim().optional(),
 });
 
-export const updateCardBodySchema = createCardBodySchema.omit({ organizationId: true }).partial();
+export const updateCardBodySchema = createCardBodySchema
+  .omit({ organizationId: true })
+  .partial()
+  .refine((body) => Object.keys(body).length > 0, {
+    message: 'At least one field must be provided for update',
+  });
 
 export const moveCardBodySchema = z.object({
   stage: z.enum(DEAL_STAGES),

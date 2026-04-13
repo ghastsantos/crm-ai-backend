@@ -68,7 +68,7 @@ export async function createCard(userId: string, input: CreateCardBody): Promise
       data: {
         title: input.title,
         stage: input.stage ?? 'LEAD_CAPTADO',
-        value: input.value != null ? new Prisma.Decimal(input.value) : null,
+        value: input.value != null ? new Prisma.Decimal(input.value.toString()) : null,
         companyName: input.companyName ?? null,
         contactName: input.contactName ?? null,
         email: input.email ?? null,
@@ -100,12 +100,20 @@ export async function listCards(userId: string, query: ListCardsQuery): Promise<
 }
 
 export async function getCard(userId: string, cardId: string): Promise<PublicCard> {
-  const deal = await prisma.deal.findUnique({ where: { id: cardId } });
+  const deal = await prisma.deal.findFirst({
+    where: {
+      id: cardId,
+      organization: {
+        members: {
+          some: { userId },
+        },
+      },
+    },
+  });
   if (!deal) {
     throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
   }
 
-  await assertMember(userId, deal.organizationId);
   return toPublicCard(deal);
 }
 
@@ -114,24 +122,33 @@ export async function updateCard(
   cardId: string,
   input: UpdateCardBody
 ): Promise<PublicCard> {
-  const deal = await prisma.deal.findUnique({ where: { id: cardId } });
+  const deal = await prisma.deal.findFirst({
+    where: {
+      id: cardId,
+      organization: {
+        members: {
+          some: { userId },
+        },
+      },
+    },
+  });
   if (!deal) {
     throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
   }
 
-  await assertMember(userId, deal.organizationId);
-
-  const data: Prisma.DealUncheckedUpdateInput = {};
+  const data: Prisma.DealUpdateInput = {};
   if (input.title !== undefined) data.title = input.title;
   if (input.stage !== undefined) data.stage = input.stage;
   if (input.value !== undefined)
-    data.value = input.value != null ? new Prisma.Decimal(input.value) : null;
+    data.value = input.value != null ? new Prisma.Decimal(input.value.toString()) : null;
   if (input.companyName !== undefined) data.companyName = input.companyName;
   if (input.contactName !== undefined) data.contactName = input.contactName;
   if (input.email !== undefined) data.email = input.email;
   if (input.phone !== undefined) data.phone = input.phone;
   if (input.notes !== undefined) data.notes = input.notes;
-  if (input.contactId !== undefined) data.contactId = input.contactId ?? null;
+  if (input.contactId !== undefined)
+    data.contact =
+      input.contactId != null ? { connect: { id: input.contactId } } : { disconnect: true };
 
   try {
     const updated = await prisma.deal.update({ where: { id: cardId }, data });
@@ -149,12 +166,19 @@ export async function moveCard(
   cardId: string,
   input: MoveCardBody
 ): Promise<PublicCard> {
-  const deal = await prisma.deal.findUnique({ where: { id: cardId } });
+  const deal = await prisma.deal.findFirst({
+    where: {
+      id: cardId,
+      organization: {
+        members: {
+          some: { userId },
+        },
+      },
+    },
+  });
   if (!deal) {
     throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
   }
-
-  await assertMember(userId, deal.organizationId);
 
   try {
     const updated = await prisma.deal.update({
@@ -171,19 +195,18 @@ export async function moveCard(
 }
 
 export async function deleteCard(userId: string, cardId: string): Promise<void> {
-  const deal = await prisma.deal.findUnique({ where: { id: cardId } });
-  if (!deal) {
+  const deleted = await prisma.deal.deleteMany({
+    where: {
+      id: cardId,
+      organization: {
+        members: {
+          some: { userId },
+        },
+      },
+    },
+  });
+
+  if (deleted.count !== 1) {
     throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
-  }
-
-  await assertMember(userId, deal.organizationId);
-
-  try {
-    await prisma.deal.delete({ where: { id: cardId } });
-  } catch (e: unknown) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-      throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
-    }
-    throw e;
   }
 }
