@@ -13,11 +13,12 @@ enum OrganizationRole {
 }
 
 enum DealStage {
-  LEAD
-  QUALIFIED
-  PROPOSAL
-  WON
-  LOST
+  LEAD_CAPTADO
+  QUALIFICACAO_MQL_ICP
+  CONTATO_INICIAL
+  PROPOSTA
+  NEGOCIACAO
+  FECHAMENTO
 }
 
 model HealthCheck {
@@ -79,8 +80,13 @@ model Contact {
 model Deal {
   id             String    @id @default(cuid())
   title          String
-  stage          DealStage @default(LEAD)
+  stage          DealStage @default(LEAD_CAPTADO)
   value          Decimal?  @db.Decimal(14, 2)
+  companyName    String?
+  contactName    String?
+  email          String?
+  phone          String?
+  notes          String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   organizationId String

@@ -8,7 +8,7 @@ import * as authService from './auth.service';
 function respondAuthSuccess(
   res: Response,
   status: number,
-  result: { token: string; user: authService.PublicUser }
+  result: { token: string; user: authService.PublicUser | authService.UserWithMemberships }
 ): void {
   if (env.AUTH_HTTPONLY_COOKIE_ENABLED) {
     setAuthCookie(res, result.token);

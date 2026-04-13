@@ -9,6 +9,7 @@
     "build": "tsc && tsc-alias -p tsconfig.json",
     "start": "node dist/server.js",
     "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "lint": "eslint src --ext .ts",
