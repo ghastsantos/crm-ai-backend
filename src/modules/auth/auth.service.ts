@@ -51,12 +51,14 @@ function toPublicUser(user: {
   };
 }
 
-export async function register(input: RegisterBody): Promise<{ token: string; user: PublicUser }> {
+export async function register(
+  input: RegisterBody
+): Promise<{ token: string; user: UserWithMemberships }> {
   const email = input.email.toLowerCase().trim();
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
 
   try {
-    const { user } = await prisma.$transaction(async (tx) => {
+    const { user, membership, organization } = await prisma.$transaction(async (tx) => {
       const createdUser = await tx.user.create({
         data: {
           email,
@@ -64,21 +66,32 @@ export async function register(input: RegisterBody): Promise<{ token: string; us
           name: input.name,
         },
       });
-      const organization = await tx.organization.create({
+      const createdOrganization = await tx.organization.create({
         data: { name: input.organizationName },
       });
-      await tx.organizationMember.create({
+      const createdMembership = await tx.organizationMember.create({
         data: {
           userId: createdUser.id,
-          organizationId: organization.id,
+          organizationId: createdOrganization.id,
           role: 'OWNER',
         },
       });
-      return { user: createdUser };
+      return { user: createdUser, membership: createdMembership, organization: createdOrganization };
     });
 
     const token = signToken(user.id, user.email);
-    return { token, user: toPublicUser(user) };
+    const userWithMemberships: UserWithMemberships = {
+      ...toPublicUser(user),
+      memberships: [
+        {
+          id: membership.id,
+          role: membership.role,
+          organizationId: membership.organizationId,
+          organizationName: organization.name,
+        },
+      ],
+    };
+    return { token, user: userWithMemberships };
   } catch (e: unknown) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
       throw new AppError(409, 'EMAIL_ALREADY_IN_USE', 'Email is already registered');
