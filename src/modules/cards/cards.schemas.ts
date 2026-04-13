@@ -1,6 +1,13 @@
 import { z } from 'zod';
 
-const DEAL_STAGES = ['LEAD', 'QUALIFIED', 'PROPOSAL', 'WON', 'LOST'] as const;
+const DEAL_STAGES = [
+  'LEAD_CAPTADO',
+  'QUALIFICACAO_MQL_ICP',
+  'CONTATO_INICIAL',
+  'PROPOSTA',
+  'NEGOCIACAO',
+  'FECHAMENTO',
+] as const;
 
 export const createCardBodySchema = z.object({
   title: z.string().min(1).max(200).trim(),

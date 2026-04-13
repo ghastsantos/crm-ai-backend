@@ -26,7 +26,7 @@ export const cardsRoutes = Router();
  *                 type: string
  *               stage:
  *                 type: string
- *                 enum: [LEAD, QUALIFIED, PROPOSAL, WON, LOST]
+ *                 enum: [LEAD_CAPTADO, QUALIFICACAO_MQL_ICP, CONTATO_INICIAL, PROPOSTA, NEGOCIACAO, FECHAMENTO]
  *               value:
  *                 type: number
  *               organizationId:
@@ -73,7 +73,7 @@ cardsRoutes.post('/', authenticate, asyncHandler(cardsController.postCard));
  *         name: stage
  *         schema:
  *           type: string
- *           enum: [LEAD, QUALIFIED, PROPOSAL, WON, LOST]
+ *           enum: [LEAD_CAPTADO, QUALIFICACAO_MQL_ICP, CONTATO_INICIAL, PROPOSTA, NEGOCIACAO, FECHAMENTO]
  *     responses:
  *       200:
  *         description: List of cards
@@ -132,7 +132,7 @@ cardsRoutes.get('/:id', authenticate, asyncHandler(cardsController.getCard));
  *             properties:
  *               stage:
  *                 type: string
- *                 enum: [LEAD, QUALIFIED, PROPOSAL, WON, LOST]
+ *                 enum: [LEAD_CAPTADO, QUALIFICACAO_MQL_ICP, CONTATO_INICIAL, PROPOSTA, NEGOCIACAO, FECHAMENTO]
  *     responses:
  *       200:
  *         description: Card moved
@@ -167,7 +167,7 @@ cardsRoutes.patch('/:id/move', authenticate, asyncHandler(cardsController.moveCa
  *                 type: string
  *               stage:
  *                 type: string
- *                 enum: [LEAD, QUALIFIED, PROPOSAL, WON, LOST]
+ *                 enum: [LEAD_CAPTADO, QUALIFICACAO_MQL_ICP, CONTATO_INICIAL, PROPOSTA, NEGOCIACAO, FECHAMENTO]
  *               value:
  *                 type: number
  *               contactId:

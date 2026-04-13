@@ -67,7 +67,7 @@ export async function createCard(userId: string, input: CreateCardBody): Promise
     const deal = await prisma.deal.create({
       data: {
         title: input.title,
-        stage: input.stage ?? 'LEAD',
+        stage: input.stage ?? 'LEAD_CAPTADO',
         value: input.value != null ? new Prisma.Decimal(input.value) : null,
         companyName: input.companyName ?? null,
         contactName: input.contactName ?? null,
