@@ -39,6 +39,8 @@ cp .env.example .env
 # Edite .env: DATABASE_URL, JWT_SECRET (≥32 chars), CORS_ORIGINS, etc.
 ```
 
+**`DATABASE_URL` e Docker:** o `docker-compose.yml` mapeia o Postgres para **`127.0.0.1:5433`** no host (não use `localhost:5432` a menos que o Postgres esteja mesmo nessa porta). Utilizador / base por defeito: `crm` / `crm_ai` (ou os que definires em `POSTGRES_*` no `.env`).
+
 ### 3. Subir o banco de dados
 
 ```bash

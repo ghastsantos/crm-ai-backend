@@ -11,6 +11,7 @@ import { verifyMutationOrigin } from '@/shared/middlewares/verifyMutationOrigin'
 import { healthRoutes } from '@/modules/health/health.routes';
 import { authRoutes } from '@/modules/auth/auth.routes';
 import { cardsRoutes } from '@/modules/cards/cards.routes';
+import { pipelineColumnsRoutes } from '@/modules/pipeline-columns/pipeline-columns.routes';
 import { apiDocsRouter } from '@/config/swagger';
 
 const app = express();
@@ -61,6 +62,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/cards', cardsRoutes);
+app.use('/api/v1/pipeline-columns', pipelineColumnsRoutes);
 if (env.API_DOCS_ENABLED) {
   app.use('/api-docs', apiDocsRouter);
 }

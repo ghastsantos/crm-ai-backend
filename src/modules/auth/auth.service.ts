@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/infrastructure/database/prisma';
 import { env } from '@/config/env';
 import { AppError } from '@/shared/errors';
+import { seedDefaultPipelineColumnsForOrganization } from '@/modules/pipeline-columns/pipeline-columns.defaults';
 import type { LoginBody, RegisterBody } from './auth.schemas';
 
 const BCRYPT_ROUNDS = 12;
@@ -69,6 +70,7 @@ export async function register(
       const createdOrganization = await tx.organization.create({
         data: { name: input.organizationName },
       });
+      await seedDefaultPipelineColumnsForOrganization(tx, createdOrganization.id);
       const createdMembership = await tx.organizationMember.create({
         data: {
           userId: createdUser.id,
@@ -76,7 +78,11 @@ export async function register(
           role: 'OWNER',
         },
       });
-      return { user: createdUser, membership: createdMembership, organization: createdOrganization };
+      return {
+        user: createdUser,
+        membership: createdMembership,
+        organization: createdOrganization,
+      };
     });
 
     const token = signToken(user.id, user.email);
