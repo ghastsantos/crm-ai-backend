@@ -2,13 +2,24 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, develop]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      JWT_SECRET: ci-jwt-secret-must-be-32-chars-min!!
+      JWT_EXPIRES_IN: 7d
+      API_DOCS_ENABLED: 'true'
 
     services:
       postgres:
@@ -47,7 +58,7 @@ jobs:
         run: npm run db:generate
 
       - name: Run migrations
-        run: npm run db:migrate
+        run: npm run db:deploy
         env:
           DATABASE_URL: postgresql://crm:crm@localhost:5432/crm_ai?schema=public
 

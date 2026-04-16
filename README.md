@@ -36,7 +36,7 @@ O `npm install` configura automaticamente o Husky (hooks de pre-commit).
 
 ```bash
 cp .env.example .env
-# Edite .env com suas configurações (DATABASE_URL, etc.)
+# Edite .env: DATABASE_URL, JWT_SECRET (≥32 chars), CORS_ORIGINS, etc.
 ```
 
 ### 3. Subir o banco de dados
@@ -204,7 +204,9 @@ Workflows acionáveis via `/` ou automaticamente quando relevantes:
 |--------|------|-----------|
 | GET | `/health` | Liveness (sem dependências) |
 | GET | `/api/v1/health` | Readiness (com verificação de DB) |
-| GET | `/api/v1/test` | Smoke test |
+| POST | `/api/v1/auth/register` | Cadastro (utilizador + organização) |
+| POST | `/api/v1/auth/login` | Login (JWT no body) |
+| GET | `/api/v1/auth/me` | Utilizador atual (Bearer JWT) |
 | GET | `/api-docs` | Documentação Swagger |
 
 ---
@@ -215,8 +217,8 @@ Workflows acionáveis via `/` ou automaticamente quando relevantes:
 src/
 ├── config/          # Configurações (env, logger, swagger)
 ├── modules/         # Módulos por domínio (routes, controller, service)
-│   ├── health/
-│   └── test/
+│   ├── auth/
+│   └── health/
 ├── shared/          # Código transversal
 │   ├── errors/
 │   ├── middlewares/
@@ -231,10 +233,6 @@ src/
 
 ## Serviço de IA
 
-O serviço de IA (Python/FastAPI) é um **projeto separado**. O contrato da API esperada está em [`docs/ai-service-contract.md`](docs/ai-service-contract.md).
+O serviço de IA (Python/FastAPI) é um **projeto separado**.
 
 ---
-
-## Licença
-
-ISC

@@ -25,4 +25,4 @@ description: Template para criar módulo CRUD completo (routes, controller, serv
 
 ## Referência
 
-Use `src/modules/health/` e `src/modules/test/` como base. Para CRUD completo, estender o padrão com list, getById, create, update, delete.
+Use `src/modules/health/` e `src/modules/auth/` como base. Para CRUD completo, estender o padrão com list, getById, create, update, delete.
