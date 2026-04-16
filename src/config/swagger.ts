@@ -27,6 +27,7 @@ const options: swaggerJsdoc.Options = {
     tags: [
       { name: 'Health', description: 'Health check endpoints' },
       { name: 'Auth', description: 'Authentication' },
+      { name: 'Cards', description: 'Cards (Deals) management' },
     ],
     components: {
       securitySchemes: {
