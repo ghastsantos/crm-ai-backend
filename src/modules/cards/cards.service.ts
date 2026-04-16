@@ -38,7 +38,7 @@ function toPublicCard(deal: {
     id: deal.id,
     title: deal.title,
     stage: deal.stage,
-    value: deal.value ? deal.value.toString() : null,
+    value: deal.value != null ? deal.value.toFixed(2) : null,
     companyName: deal.companyName,
     contactName: deal.contactName,
     email: deal.email,
