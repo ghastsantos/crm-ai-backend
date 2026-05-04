@@ -31,6 +31,7 @@ export const updateCardBodySchema = z
 
 export const moveCardBodySchema = z.object({
   pipelineColumnId: z.string().min(1),
+  position: z.number().int().min(0).max(1_000_000).optional(),
 });
 
 export const listCardsQuerySchema = z.object({

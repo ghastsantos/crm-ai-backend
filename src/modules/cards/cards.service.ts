@@ -13,6 +13,7 @@ export interface PublicCard {
   email: string | null;
   phone: string | null;
   notes: string | null;
+  position: number;
   organizationId: string;
   contactId: string | null;
   createdAt: Date;
@@ -29,6 +30,7 @@ function toPublicCard(deal: {
   email: string | null;
   phone: string | null;
   notes: string | null;
+  position: number;
   organizationId: string;
   contactId: string | null;
   createdAt: Date;
@@ -44,6 +46,7 @@ function toPublicCard(deal: {
     email: deal.email,
     phone: deal.phone,
     notes: deal.notes,
+    position: deal.position,
     organizationId: deal.organizationId,
     contactId: deal.contactId,
     createdAt: deal.createdAt,
@@ -76,6 +79,8 @@ export async function createCard(userId: string, input: CreateCardBody): Promise
   await assertMember(userId, input.organizationId);
   await assertPipelineColumnForOrg(input.pipelineColumnId, input.organizationId);
 
+  const nextPosition = await nextPositionForColumn(input.pipelineColumnId);
+
   try {
     const deal = await prisma.deal.create({
       data: {
@@ -87,6 +92,7 @@ export async function createCard(userId: string, input: CreateCardBody): Promise
         email: input.email ?? null,
         phone: input.phone ?? null,
         notes: input.notes ?? null,
+        position: nextPosition,
         organizationId: input.organizationId,
         contactId: input.contactId ?? null,
       },
@@ -100,6 +106,14 @@ export async function createCard(userId: string, input: CreateCardBody): Promise
   }
 }
 
+async function nextPositionForColumn(pipelineColumnId: string): Promise<number> {
+  const agg = await prisma.deal.aggregate({
+    where: { pipelineColumnId },
+    _max: { position: true },
+  });
+  return (agg._max.position ?? -1) + 1;
+}
+
 export async function listCards(userId: string, query: ListCardsQuery): Promise<PublicCard[]> {
   await assertMember(userId, query.organizationId);
 
@@ -108,7 +122,10 @@ export async function listCards(userId: string, query: ListCardsQuery): Promise<
     where.pipelineColumnId = query.pipelineColumnId;
   }
 
-  const deals = await prisma.deal.findMany({ where, orderBy: { createdAt: 'desc' } });
+  const deals = await prisma.deal.findMany({
+    where,
+    orderBy: [{ pipelineColumnId: 'asc' }, { position: 'asc' }, { createdAt: 'desc' }],
+  });
   return deals.map(toPublicCard);
 }
 
@@ -202,10 +219,71 @@ export async function moveCard(
 
   await assertPipelineColumnForOrg(input.pipelineColumnId, deal.organizationId);
 
+  const sourceColumnId = deal.pipelineColumnId;
+  const targetColumnId = input.pipelineColumnId;
+  const sourcePos = deal.position;
+  const sameColumn = sourceColumnId === targetColumnId;
+
+  const targetCount = await prisma.deal.count({
+    where: { pipelineColumnId: targetColumnId, NOT: { id: cardId } },
+  });
+  const requestedPos = input.position ?? targetCount;
+  const targetPos = Math.max(0, Math.min(requestedPos, targetCount));
+
   try {
-    const updated = await prisma.deal.update({
-      where: { id: cardId },
-      data: { pipelineColumn: { connect: { id: input.pipelineColumnId } } },
+    const updated = await prisma.$transaction(async (tx) => {
+      if (sameColumn) {
+        if (sourcePos === targetPos) {
+          return tx.deal.findUniqueOrThrow({ where: { id: cardId } });
+        }
+        if (targetPos < sourcePos) {
+          await tx.deal.updateMany({
+            where: {
+              pipelineColumnId: targetColumnId,
+              position: { gte: targetPos, lt: sourcePos },
+              NOT: { id: cardId },
+            },
+            data: { position: { increment: 1 } },
+          });
+        } else {
+          await tx.deal.updateMany({
+            where: {
+              pipelineColumnId: targetColumnId,
+              position: { gt: sourcePos, lte: targetPos },
+              NOT: { id: cardId },
+            },
+            data: { position: { decrement: 1 } },
+          });
+        }
+        return tx.deal.update({
+          where: { id: cardId },
+          data: { position: targetPos },
+        });
+      }
+
+      await tx.deal.updateMany({
+        where: {
+          pipelineColumnId: sourceColumnId,
+          position: { gt: sourcePos },
+        },
+        data: { position: { decrement: 1 } },
+      });
+
+      await tx.deal.updateMany({
+        where: {
+          pipelineColumnId: targetColumnId,
+          position: { gte: targetPos },
+        },
+        data: { position: { increment: 1 } },
+      });
+
+      return tx.deal.update({
+        where: { id: cardId },
+        data: {
+          pipelineColumn: { connect: { id: targetColumnId } },
+          position: targetPos,
+        },
+      });
     });
     return toPublicCard(updated);
   } catch (e: unknown) {
