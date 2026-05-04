@@ -93,6 +93,7 @@ model Deal {
   email            String?
   phone            String?
   notes            String?
+  position         Int      @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   organizationId   String
@@ -105,4 +106,5 @@ model Deal {
 
   @@index([organizationId])
   @@index([pipelineColumnId])
+  @@index([pipelineColumnId, position])
 }

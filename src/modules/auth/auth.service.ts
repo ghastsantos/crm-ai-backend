@@ -5,7 +5,7 @@ import { prisma } from '@/infrastructure/database/prisma';
 import { env } from '@/config/env';
 import { AppError } from '@/shared/errors';
 import { seedDefaultPipelineColumnsForOrganization } from '@/modules/pipeline-columns/pipeline-columns.defaults';
-import type { LoginBody, RegisterBody } from './auth.schemas';
+import type { ChangePasswordBody, LoginBody, RegisterBody, UpdateMeBody } from './auth.schemas';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -143,4 +143,44 @@ export async function getMe(userId: string): Promise<UserWithMemberships> {
     ...toPublicUser(user),
     memberships,
   };
+}
+
+export async function updateMe(userId: string, input: UpdateMeBody): Promise<UserWithMemberships> {
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+      },
+    });
+  } catch (e: unknown) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
+      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+    }
+    throw e;
+  }
+
+  return getMe(userId);
+}
+
+export async function changePassword(userId: string, input: ChangePasswordBody): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+  }
+
+  const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+  if (!valid) {
+    throw new AppError(400, 'INVALID_CURRENT_PASSWORD', 'Current password is incorrect');
+  }
+
+  if (input.currentPassword === input.newPassword) {
+    throw new AppError(400, 'PASSWORD_UNCHANGED', 'New password must differ from current');
+  }
+
+  const passwordHash = await bcrypt.hash(input.newPassword, BCRYPT_ROUNDS);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash },
+  });
 }
