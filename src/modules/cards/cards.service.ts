@@ -6,7 +6,7 @@ import type { CreateCardBody, UpdateCardBody, MoveCardBody, ListCardsQuery } fro
 export interface PublicCard {
   id: string;
   title: string;
-  stage: string;
+  pipelineColumnId: string;
   value: string | null;
   companyName: string | null;
   contactName: string | null;
@@ -22,7 +22,7 @@ export interface PublicCard {
 function toPublicCard(deal: {
   id: string;
   title: string;
-  stage: string;
+  pipelineColumnId: string;
   value: Prisma.Decimal | null;
   companyName: string | null;
   contactName: string | null;
@@ -37,7 +37,7 @@ function toPublicCard(deal: {
   return {
     id: deal.id,
     title: deal.title,
-    stage: deal.stage,
+    pipelineColumnId: deal.pipelineColumnId,
     value: deal.value != null ? deal.value.toFixed(2) : null,
     companyName: deal.companyName,
     contactName: deal.contactName,
@@ -60,14 +60,27 @@ async function assertMember(userId: string, organizationId: string): Promise<voi
   }
 }
 
+async function assertPipelineColumnForOrg(
+  pipelineColumnId: string,
+  organizationId: string
+): Promise<void> {
+  const col = await prisma.pipelineColumn.findFirst({
+    where: { id: pipelineColumnId, organizationId },
+  });
+  if (!col) {
+    throw new AppError(400, 'INVALID_REFERENCE', 'Pipeline column not found for organization');
+  }
+}
+
 export async function createCard(userId: string, input: CreateCardBody): Promise<PublicCard> {
   await assertMember(userId, input.organizationId);
+  await assertPipelineColumnForOrg(input.pipelineColumnId, input.organizationId);
 
   try {
     const deal = await prisma.deal.create({
       data: {
         title: input.title,
-        stage: input.stage ?? 'LEAD_CAPTADO',
+        pipelineColumnId: input.pipelineColumnId,
         value: input.value != null ? new Prisma.Decimal(input.value.toString()) : null,
         companyName: input.companyName ?? null,
         contactName: input.contactName ?? null,
@@ -91,8 +104,8 @@ export async function listCards(userId: string, query: ListCardsQuery): Promise<
   await assertMember(userId, query.organizationId);
 
   const where: Prisma.DealWhereInput = { organizationId: query.organizationId };
-  if (query.stage) {
-    where.stage = query.stage;
+  if (query.pipelineColumnId) {
+    where.pipelineColumnId = query.pipelineColumnId;
   }
 
   const deals = await prisma.deal.findMany({ where, orderBy: { createdAt: 'desc' } });
@@ -136,11 +149,18 @@ export async function updateCard(
     throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
   }
 
+  if (input.pipelineColumnId !== undefined) {
+    await assertPipelineColumnForOrg(input.pipelineColumnId, deal.organizationId);
+  }
+
   const data: Prisma.DealUpdateInput = {};
   if (input.title !== undefined) data.title = input.title;
-  if (input.stage !== undefined) data.stage = input.stage;
-  if (input.value !== undefined)
-    data.value = input.value != null ? new Prisma.Decimal(input.value.toString()) : null;
+  if (input.pipelineColumnId !== undefined) {
+    data.pipelineColumn = { connect: { id: input.pipelineColumnId } };
+  }
+  if (input.value !== undefined) {
+    data.value = input.value === null ? null : new Prisma.Decimal(String(input.value));
+  }
   if (input.companyName !== undefined) data.companyName = input.companyName;
   if (input.contactName !== undefined) data.contactName = input.contactName;
   if (input.email !== undefined) data.email = input.email;
@@ -180,10 +200,12 @@ export async function moveCard(
     throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
   }
 
+  await assertPipelineColumnForOrg(input.pipelineColumnId, deal.organizationId);
+
   try {
     const updated = await prisma.deal.update({
       where: { id: cardId },
-      data: { stage: input.stage },
+      data: { pipelineColumn: { connect: { id: input.pipelineColumnId } } },
     });
     return toPublicCard(updated);
   } catch (e: unknown) {
