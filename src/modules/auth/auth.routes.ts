@@ -34,7 +34,7 @@ const authWriteLimiter = rateLimit({
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email, password, name, organizationName]
+ *             required: [email, password, name, organizationName, organizationNiche]
  *             properties:
  *               email:
  *                 type: string
@@ -46,6 +46,10 @@ const authWriteLimiter = rateLimit({
  *                 type: string
  *               organizationName:
  *                 type: string
+ *               organizationNiche:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 120
  *     responses:
  *       201:
  *         description: User created
