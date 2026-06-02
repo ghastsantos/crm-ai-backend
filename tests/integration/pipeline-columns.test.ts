@@ -14,6 +14,7 @@ describe.skipIf(!process.env.DATABASE_URL)('Pipeline columns with database', () 
       password,
       name: 'PC User',
       organizationName: 'PC Org',
+      organizationNiche: 'Serviços',
     });
 
     const token = reg.body.data.token as string;

@@ -43,6 +43,7 @@ describe.skipIf(!process.env.DATABASE_URL)('Auth flow with database', () => {
         password,
         name: 'Test User',
         organizationName: 'Test Org',
+        organizationNiche: 'Serviços',
       });
 
     expect(reg.status).toBe(201);
@@ -71,6 +72,7 @@ describe.skipIf(!process.env.DATABASE_URL)('Auth flow with database', () => {
       password,
       name: 'Cookie User',
       organizationName: 'Cookie Org',
+      organizationNiche: 'Serviços',
     });
 
     const agent = request.agent(app);
@@ -93,6 +95,7 @@ describe.skipIf(!process.env.DATABASE_URL)('Auth flow with database', () => {
       password,
       name: 'Logout User',
       organizationName: 'Logout Org',
+      organizationNiche: 'Serviços',
     });
 
     const agent = request.agent(app);
@@ -112,6 +115,7 @@ describe.skipIf(!process.env.DATABASE_URL)('Auth flow with database', () => {
       password: 'password123',
       name: 'A',
       organizationName: 'Org A',
+      organizationNiche: 'Serviços',
     };
 
     const first = await request(app).post('/api/v1/auth/register').send(body);
@@ -120,6 +124,7 @@ describe.skipIf(!process.env.DATABASE_URL)('Auth flow with database', () => {
     const second = await request(app).post('/api/v1/auth/register').send({
       ...body,
       organizationName: 'Org B',
+      organizationNiche: 'Tecnologia',
     });
     expect(second.status).toBe(409);
     expect(second.body.error.code).toBe('EMAIL_ALREADY_IN_USE');
@@ -133,6 +138,7 @@ describe.skipIf(!process.env.DATABASE_URL)('Auth flow with database', () => {
       password: 'rightpassword1',
       name: 'U',
       organizationName: 'O',
+      organizationNiche: 'Serviços',
     });
 
     const res = await request(app)

@@ -37,10 +37,14 @@ organizationsRoutes.get('/', authenticate, asyncHandler(organizationsController.
  *         application/json:
  *           schema:
  *             type: object
- *             required: [name]
+ *             required: [name, niche]
  *             properties:
  *               name:
  *                 type: string
+ *               niche:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 120
  *     responses:
  *       201:
  *         description: Organization created
@@ -77,6 +81,10 @@ organizationsRoutes.post('/', authenticate, asyncHandler(organizationsController
  *                 type: string
  *                 minLength: 1
  *                 maxLength: 200
+ *               niche:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 120
  *     responses:
  *       200:
  *         description: Organization updated

@@ -22,6 +22,7 @@ export interface MembershipSummary {
   role: string;
   organizationId: string;
   organizationName: string;
+  organizationNiche: string;
 }
 
 export interface UserWithMemberships extends PublicUser {
@@ -68,7 +69,7 @@ export async function register(
         },
       });
       const createdOrganization = await tx.organization.create({
-        data: { name: input.organizationName },
+        data: { name: input.organizationName, niche: input.organizationNiche },
       });
       await seedDefaultPipelineColumnsForOrganization(tx, createdOrganization.id);
       const createdMembership = await tx.organizationMember.create({
@@ -94,6 +95,7 @@ export async function register(
           role: membership.role,
           organizationId: membership.organizationId,
           organizationName: organization.name,
+          organizationNiche: organization.niche,
         },
       ],
     };
@@ -137,6 +139,7 @@ export async function getMe(userId: string): Promise<UserWithMemberships> {
     role: m.role,
     organizationId: m.organizationId,
     organizationName: m.organization.name,
+    organizationNiche: m.organization.niche,
   }));
 
   return {

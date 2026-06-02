@@ -7,6 +7,7 @@ import type { CreateOrganizationBody, UpdateOrganizationBody } from './organizat
 export interface PublicOrganization {
   id: string;
   name: string;
+  niche: string;
   role: string;
   createdAt: Date;
   updatedAt: Date;
@@ -16,6 +17,7 @@ function toPublicOrganization(
   org: {
     id: string;
     name: string;
+    niche: string;
     createdAt: Date;
     updatedAt: Date;
   },
@@ -24,6 +26,7 @@ function toPublicOrganization(
   return {
     id: org.id,
     name: org.name,
+    niche: org.niche,
     role,
     createdAt: org.createdAt,
     updatedAt: org.updatedAt,
@@ -51,7 +54,9 @@ export async function createOrganization(
   input: CreateOrganizationBody
 ): Promise<PublicOrganization> {
   const created = await prisma.$transaction(async (tx) => {
-    const organization = await tx.organization.create({ data: { name: input.name } });
+    const organization = await tx.organization.create({
+      data: { name: input.name, niche: input.niche },
+    });
     await seedDefaultPipelineColumnsForOrganization(tx, organization.id);
     await tx.organizationMember.create({
       data: {
@@ -83,6 +88,7 @@ export async function updateOrganization(
 
   const data: Prisma.OrganizationUpdateInput = {};
   if (input.name !== undefined) data.name = input.name;
+  if (input.niche !== undefined) data.niche = input.niche;
 
   try {
     const updated = await prisma.organization.update({

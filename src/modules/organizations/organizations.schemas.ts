@@ -6,11 +6,13 @@ export const organizationIdParamsSchema = z.object({
 
 export const createOrganizationBodySchema = z.object({
   name: z.string().min(1).max(200).trim(),
+  niche: z.string().min(1).max(120).trim(),
 });
 
 export const updateOrganizationBodySchema = z
   .object({
     name: z.string().min(1).max(200).trim().optional(),
+    niche: z.string().min(1).max(120).trim().optional(),
   })
   .refine((body) => Object.keys(body).length > 0, {
     message: 'At least one field must be provided for update',

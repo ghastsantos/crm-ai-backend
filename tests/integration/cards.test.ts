@@ -61,6 +61,7 @@ describe.skipIf(!process.env.DATABASE_URL)('Cards flow with database', () => {
       password,
       name: 'Cards User',
       organizationName: 'Cards Org',
+      organizationNiche: 'Serviços',
     });
 
     const token = reg.body.data.token as string;
