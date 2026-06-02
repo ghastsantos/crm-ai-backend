@@ -8,6 +8,7 @@ describe('Cards HTTP validation', () => {
     const res = await request(app).post('/api/v1/cards').send({
       title: 'Test Card',
       organizationId: randomUUID(),
+      pipelineColumnId: randomUUID(),
     });
     expect(res.status).toBe(401);
     expect(res.body.success).toBe(false);
@@ -37,7 +38,7 @@ describe('Cards HTTP validation', () => {
   it('PATCH /api/v1/cards/:id/move returns 401 without token', async () => {
     const res = await request(app)
       .patch(`/api/v1/cards/${randomUUID()}/move`)
-      .send({ stage: 'PROPOSTA' });
+      .send({ pipelineColumnId: randomUUID() });
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('UNAUTHORIZED');
   });
@@ -60,11 +61,28 @@ describe.skipIf(!process.env.DATABASE_URL)('Cards flow with database', () => {
       password,
       name: 'Cards User',
       organizationName: 'Cards Org',
+      organizationNiche: 'Serviços',
     });
 
     const token = reg.body.data.token as string;
     const organizationId = reg.body.data.user.memberships[0].organizationId as string;
     return { token, organizationId };
+  }
+
+  async function columnIdByPosition(
+    token: string,
+    organizationId: string,
+    position: number
+  ): Promise<string> {
+    const res = await request(app)
+      .get('/api/v1/pipeline-columns')
+      .query({ organizationId })
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    const cols = res.body.data as { id: string; position: number }[];
+    const col = cols.find((c) => c.position === position);
+    if (!col) throw new Error(`No column at position ${position}`);
+    return col.id;
   }
 
   it('POST /api/v1/cards returns 400 when body invalid', async () => {
@@ -89,17 +107,24 @@ describe.skipIf(!process.env.DATABASE_URL)('Cards flow with database', () => {
 
   it('creates, retrieves, updates, moves and deletes a card', async () => {
     const { token, organizationId } = await registerAndLogin();
+    const colProposta = await columnIdByPosition(token, organizationId, 3);
+    const colNegociacao = await columnIdByPosition(token, organizationId, 4);
 
     const create = await request(app)
       .post('/api/v1/cards')
       .set('Authorization', `Bearer ${token}`)
-      .send({ title: 'Deal A', organizationId, value: 1500.5, stage: 'PROPOSTA' });
+      .send({
+        title: 'Deal A',
+        organizationId,
+        value: 1500.5,
+        pipelineColumnId: colProposta,
+      });
     expect(create.status).toBe(201);
     expect(create.body.success).toBe(true);
     const card = create.body.data;
     expect(card.title).toBe('Deal A');
     expect(card.value).toBe('1500.50');
-    expect(card.stage).toBe('PROPOSTA');
+    expect(card.pipelineColumnId).toBe(colProposta);
 
     const get = await request(app)
       .get(`/api/v1/cards/${card.id}`)
@@ -125,9 +150,9 @@ describe.skipIf(!process.env.DATABASE_URL)('Cards flow with database', () => {
     const move = await request(app)
       .patch(`/api/v1/cards/${card.id}/move`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ stage: 'NEGOCIACAO' });
+      .send({ pipelineColumnId: colNegociacao });
     expect(move.status).toBe(200);
-    expect(move.body.data.stage).toBe('NEGOCIACAO');
+    expect(move.body.data.pipelineColumnId).toBe(colNegociacao);
 
     const del = await request(app)
       .delete(`/api/v1/cards/${card.id}`)
@@ -145,10 +170,12 @@ describe.skipIf(!process.env.DATABASE_URL)('Cards flow with database', () => {
     const { token: token1, organizationId } = await registerAndLogin();
     const { token: token2 } = await registerAndLogin();
 
+    const colId = await columnIdByPosition(token1, organizationId, 0);
+
     const create = await request(app)
       .post('/api/v1/cards')
       .set('Authorization', `Bearer ${token1}`)
-      .send({ title: 'Private Card', organizationId });
+      .send({ title: 'Private Card', organizationId, pipelineColumnId: colId });
     expect(create.status).toBe(201);
     const cardId = create.body.data.id as string;
 

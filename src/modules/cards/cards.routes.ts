@@ -20,13 +20,12 @@ export const cardsRoutes = Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required: [title, organizationId]
+ *             required: [title, organizationId, pipelineColumnId]
  *             properties:
  *               title:
  *                 type: string
- *               stage:
+ *               pipelineColumnId:
  *                 type: string
- *                 enum: [LEAD_CAPTADO, QUALIFICACAO_MQL_ICP, CONTATO_INICIAL, PROPOSTA, NEGOCIACAO, FECHAMENTO]
  *               value:
  *                 type: number
  *               organizationId:
@@ -128,11 +127,10 @@ cardsRoutes.get('/:id', authenticate, asyncHandler(cardsController.getCard));
  *         application/json:
  *           schema:
  *             type: object
- *             required: [stage]
+ *             required: [pipelineColumnId]
  *             properties:
- *               stage:
+ *               pipelineColumnId:
  *                 type: string
- *                 enum: [LEAD_CAPTADO, QUALIFICACAO_MQL_ICP, CONTATO_INICIAL, PROPOSTA, NEGOCIACAO, FECHAMENTO]
  *     responses:
  *       200:
  *         description: Card moved
@@ -165,9 +163,8 @@ cardsRoutes.patch('/:id/move', authenticate, asyncHandler(cardsController.moveCa
  *             properties:
  *               title:
  *                 type: string
- *               stage:
+ *               pipelineColumnId:
  *                 type: string
- *                 enum: [LEAD_CAPTADO, QUALIFICACAO_MQL_ICP, CONTATO_INICIAL, PROPOSTA, NEGOCIACAO, FECHAMENTO]
  *               value:
  *                 type: number
  *               contactId:

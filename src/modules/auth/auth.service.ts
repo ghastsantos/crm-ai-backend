@@ -4,7 +4,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/infrastructure/database/prisma';
 import { env } from '@/config/env';
 import { AppError } from '@/shared/errors';
-import type { LoginBody, RegisterBody } from './auth.schemas';
+import { seedDefaultPipelineColumnsForOrganization } from '@/modules/pipeline-columns/pipeline-columns.defaults';
+import type { ChangePasswordBody, LoginBody, RegisterBody, UpdateMeBody } from './auth.schemas';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -21,6 +22,7 @@ export interface MembershipSummary {
   role: string;
   organizationId: string;
   organizationName: string;
+  organizationNiche: string;
 }
 
 export interface UserWithMemberships extends PublicUser {
@@ -67,8 +69,9 @@ export async function register(
         },
       });
       const createdOrganization = await tx.organization.create({
-        data: { name: input.organizationName },
+        data: { name: input.organizationName, niche: input.organizationNiche },
       });
+      await seedDefaultPipelineColumnsForOrganization(tx, createdOrganization.id);
       const createdMembership = await tx.organizationMember.create({
         data: {
           userId: createdUser.id,
@@ -76,7 +79,11 @@ export async function register(
           role: 'OWNER',
         },
       });
-      return { user: createdUser, membership: createdMembership, organization: createdOrganization };
+      return {
+        user: createdUser,
+        membership: createdMembership,
+        organization: createdOrganization,
+      };
     });
 
     const token = signToken(user.id, user.email);
@@ -88,6 +95,7 @@ export async function register(
           role: membership.role,
           organizationId: membership.organizationId,
           organizationName: organization.name,
+          organizationNiche: organization.niche,
         },
       ],
     };
@@ -131,10 +139,51 @@ export async function getMe(userId: string): Promise<UserWithMemberships> {
     role: m.role,
     organizationId: m.organizationId,
     organizationName: m.organization.name,
+    organizationNiche: m.organization.niche,
   }));
 
   return {
     ...toPublicUser(user),
     memberships,
   };
+}
+
+export async function updateMe(userId: string, input: UpdateMeBody): Promise<UserWithMemberships> {
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+      },
+    });
+  } catch (e: unknown) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
+      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+    }
+    throw e;
+  }
+
+  return getMe(userId);
+}
+
+export async function changePassword(userId: string, input: ChangePasswordBody): Promise<void> {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+  }
+
+  const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+  if (!valid) {
+    throw new AppError(400, 'INVALID_CURRENT_PASSWORD', 'Current password is incorrect');
+  }
+
+  if (input.currentPassword === input.newPassword) {
+    throw new AppError(400, 'PASSWORD_UNCHANGED', 'New password must differ from current');
+  }
+
+  const passwordHash = await bcrypt.hash(input.newPassword, BCRYPT_ROUNDS);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash },
+  });
 }

@@ -2,7 +2,12 @@ import { Request, Response } from 'express';
 import { env } from '@/config/env';
 import { AppError, ValidationError } from '@/shared/errors';
 import { clearAuthCookie, setAuthCookie } from '@/shared/lib/auth-cookie';
-import { registerBodySchema, loginBodySchema } from './auth.schemas';
+import {
+  registerBodySchema,
+  loginBodySchema,
+  updateMeBodySchema,
+  changePasswordBodySchema,
+} from './auth.schemas';
 import * as authService from './auth.service';
 
 function respondAuthSuccess(
@@ -50,4 +55,30 @@ export async function getMe(req: Request, res: Response): Promise<void> {
   }
   const user = await authService.getMe(userId);
   res.status(200).json({ success: true, data: user });
+}
+
+export async function patchMe(req: Request, res: Response): Promise<void> {
+  const userId = req.auth?.userId;
+  if (!userId) {
+    throw new AppError(401, 'UNAUTHORIZED', 'Authentication required');
+  }
+  const parsed = updateMeBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ValidationError('Validation failed', parsed.error.flatten());
+  }
+  const user = await authService.updateMe(userId, parsed.data);
+  res.status(200).json({ success: true, data: user });
+}
+
+export async function postChangePassword(req: Request, res: Response): Promise<void> {
+  const userId = req.auth?.userId;
+  if (!userId) {
+    throw new AppError(401, 'UNAUTHORIZED', 'Authentication required');
+  }
+  const parsed = changePasswordBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new ValidationError('Validation failed', parsed.error.flatten());
+  }
+  await authService.changePassword(userId, parsed.data);
+  res.status(204).send();
 }

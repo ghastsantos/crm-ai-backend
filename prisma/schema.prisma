@@ -12,15 +12,6 @@ enum OrganizationRole {
   MEMBER
 }
 
-enum DealStage {
-  LEAD_CAPTADO
-  QUALIFICACAO_MQL_ICP
-  CONTATO_INICIAL
-  PROPOSTA
-  NEGOCIACAO
-  FECHAMENTO
-}
-
 model HealthCheck {
   id        String   @id @default(cuid())
   checkedAt DateTime @default(now())
@@ -40,12 +31,14 @@ model User {
 model Organization {
   id        String   @id @default(cuid())
   name      String
+  niche     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members  OrganizationMember[]
-  contacts Contact[]
-  deals    Deal[]
+  members         OrganizationMember[]
+  contacts        Contact[]
+  deals           Deal[]
+  pipelineColumns PipelineColumn[]
 }
 
 model OrganizationMember {
@@ -59,6 +52,21 @@ model OrganizationMember {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+model PipelineColumn {
+  id             String   @id @default(cuid())
+  organizationId String
+  title          String
+  position       Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deals        Deal[]
+
+  @@unique([organizationId, position])
   @@index([organizationId])
 }
 
@@ -78,22 +86,26 @@ model Contact {
 }
 
 model Deal {
-  id             String    @id @default(cuid())
-  title          String
-  stage          DealStage @default(LEAD_CAPTADO)
-  value          Decimal?  @db.Decimal(14, 2)
-  companyName    String?
-  contactName    String?
-  email          String?
-  phone          String?
-  notes          String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  organizationId String
-  contactId      String?
+  id               String   @id @default(cuid())
+  title            String
+  value            Decimal? @db.Decimal(14, 2)
+  companyName      String?
+  contactName      String?
+  email            String?
+  phone            String?
+  notes            String?
+  position         Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  organizationId   String
+  contactId        String?
+  pipelineColumnId String
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  contact      Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contact        Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  pipelineColumn PipelineColumn @relation(fields: [pipelineColumnId], references: [id], onDelete: Restrict)
 
   @@index([organizationId])
+  @@index([pipelineColumnId])
+  @@index([pipelineColumnId, position])
 }
