@@ -1,6 +1,7 @@
-import { Prisma } from '@prisma/client';
+import { PipelineLogAction, Prisma } from '@prisma/client';
 import { prisma } from '@/infrastructure/database/prisma';
 import { AppError } from '@/shared/errors';
+import { createPipelineLog } from '@/modules/pipeline-logs/pipeline-logs.service';
 import type { CreateCardBody, UpdateCardBody, MoveCardBody, ListCardsQuery } from './cards.schemas';
 
 export interface PublicCard {
@@ -58,6 +59,7 @@ async function assertMember(userId: string, organizationId: string): Promise<voi
   const membership = await prisma.organizationMember.findUnique({
     where: { userId_organizationId: { userId, organizationId } },
   });
+
   if (!membership) {
     throw new AppError(403, 'FORBIDDEN', 'Access denied');
   }
@@ -66,18 +68,34 @@ async function assertMember(userId: string, organizationId: string): Promise<voi
 async function assertPipelineColumnForOrg(
   pipelineColumnId: string,
   organizationId: string
-): Promise<void> {
+): Promise<{ id: string; title: string }> {
   const col = await prisma.pipelineColumn.findFirst({
     where: { id: pipelineColumnId, organizationId },
+    select: {
+      id: true,
+      title: true,
+    },
   });
+
   if (!col) {
     throw new AppError(400, 'INVALID_REFERENCE', 'Pipeline column not found for organization');
   }
+
+  return col;
+}
+
+async function nextPositionForColumn(pipelineColumnId: string): Promise<number> {
+  const agg = await prisma.deal.aggregate({
+    where: { pipelineColumnId },
+    _max: { position: true },
+  });
+
+  return (agg._max.position ?? -1) + 1;
 }
 
 export async function createCard(userId: string, input: CreateCardBody): Promise<PublicCard> {
   await assertMember(userId, input.organizationId);
-  await assertPipelineColumnForOrg(input.pipelineColumnId, input.organizationId);
+  const column = await assertPipelineColumnForOrg(input.pipelineColumnId, input.organizationId);
 
   const nextPosition = await nextPositionForColumn(input.pipelineColumnId);
 
@@ -97,27 +115,38 @@ export async function createCard(userId: string, input: CreateCardBody): Promise
         contactId: input.contactId ?? null,
       },
     });
+
+    await createPipelineLog({
+      organizationId: deal.organizationId,
+      userId,
+      dealId: deal.id,
+      action: PipelineLogAction.DEAL_CREATED,
+      description: `Criou a negociação "${deal.title}" na coluna "${column.title}".`,
+      toColumnId: column.id,
+      toColumnName: column.title,
+      metadata: {
+        dealId: deal.id,
+        title: deal.title,
+        position: deal.position,
+        value: deal.value != null ? deal.value.toFixed(2) : null,
+      },
+    });
+
     return toPublicCard(deal);
   } catch (e: unknown) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
       throw new AppError(400, 'INVALID_REFERENCE', 'Referenced record not found');
     }
+
     throw e;
   }
-}
-
-async function nextPositionForColumn(pipelineColumnId: string): Promise<number> {
-  const agg = await prisma.deal.aggregate({
-    where: { pipelineColumnId },
-    _max: { position: true },
-  });
-  return (agg._max.position ?? -1) + 1;
 }
 
 export async function listCards(userId: string, query: ListCardsQuery): Promise<PublicCard[]> {
   await assertMember(userId, query.organizationId);
 
   const where: Prisma.DealWhereInput = { organizationId: query.organizationId };
+
   if (query.pipelineColumnId) {
     where.pipelineColumnId = query.pipelineColumnId;
   }
@@ -126,6 +155,7 @@ export async function listCards(userId: string, query: ListCardsQuery): Promise<
     where,
     orderBy: [{ pipelineColumnId: 'asc' }, { position: 'asc' }, { createdAt: 'desc' }],
   });
+
   return deals.map(toPublicCard);
 }
 
@@ -140,6 +170,7 @@ export async function getCard(userId: string, cardId: string): Promise<PublicCar
       },
     },
   });
+
   if (!deal) {
     throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
   }
@@ -161,39 +192,107 @@ export async function updateCard(
         },
       },
     },
+    include: {
+      pipelineColumn: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+    },
   });
+
   if (!deal) {
     throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
   }
 
+  let newColumn: { id: string; title: string } | null = null;
+
   if (input.pipelineColumnId !== undefined) {
-    await assertPipelineColumnForOrg(input.pipelineColumnId, deal.organizationId);
+    newColumn = await assertPipelineColumnForOrg(input.pipelineColumnId, deal.organizationId);
   }
 
   const data: Prisma.DealUpdateInput = {};
-  if (input.title !== undefined) data.title = input.title;
+  const changedFields: string[] = [];
+
+  if (input.title !== undefined) {
+    data.title = input.title;
+    changedFields.push('title');
+  }
+
   if (input.pipelineColumnId !== undefined) {
     data.pipelineColumn = { connect: { id: input.pipelineColumnId } };
+    changedFields.push('pipelineColumnId');
   }
+
   if (input.value !== undefined) {
     data.value = input.value === null ? null : new Prisma.Decimal(String(input.value));
+    changedFields.push('value');
   }
-  if (input.companyName !== undefined) data.companyName = input.companyName;
-  if (input.contactName !== undefined) data.contactName = input.contactName;
-  if (input.email !== undefined) data.email = input.email;
-  if (input.phone !== undefined) data.phone = input.phone;
-  if (input.notes !== undefined) data.notes = input.notes;
-  if (input.contactId !== undefined)
+
+  if (input.companyName !== undefined) {
+    data.companyName = input.companyName;
+    changedFields.push('companyName');
+  }
+
+  if (input.contactName !== undefined) {
+    data.contactName = input.contactName;
+    changedFields.push('contactName');
+  }
+
+  if (input.email !== undefined) {
+    data.email = input.email;
+    changedFields.push('email');
+  }
+
+  if (input.phone !== undefined) {
+    data.phone = input.phone;
+    changedFields.push('phone');
+  }
+
+  if (input.notes !== undefined) {
+    data.notes = input.notes;
+    changedFields.push('notes');
+  }
+
+  if (input.contactId !== undefined) {
     data.contact =
       input.contactId != null ? { connect: { id: input.contactId } } : { disconnect: true };
+    changedFields.push('contactId');
+  }
 
   try {
-    const updated = await prisma.deal.update({ where: { id: cardId }, data });
+    const updated = await prisma.deal.update({
+      where: { id: cardId },
+      data,
+    });
+
+    await createPipelineLog({
+      organizationId: updated.organizationId,
+      userId,
+      dealId: updated.id,
+      action: PipelineLogAction.DEAL_UPDATED,
+      description: `Atualizou a negociação "${updated.title}".`,
+      fromColumnId: deal.pipelineColumn.id,
+      fromColumnName: deal.pipelineColumn.title,
+      toColumnId: newColumn?.id ?? updated.pipelineColumnId,
+      toColumnName: newColumn?.title ?? deal.pipelineColumn.title,
+      previousValue: deal.title,
+      newValue: updated.title,
+      metadata: {
+        dealId: updated.id,
+        previousTitle: deal.title,
+        newTitle: updated.title,
+        changedFields,
+      },
+    });
+
     return toPublicCard(updated);
   } catch (e: unknown) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
       throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
     }
+
     throw e;
   }
 }
@@ -212,12 +311,21 @@ export async function moveCard(
         },
       },
     },
+    include: {
+      pipelineColumn: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+    },
   });
+
   if (!deal) {
     throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
   }
 
-  await assertPipelineColumnForOrg(input.pipelineColumnId, deal.organizationId);
+  const targetColumn = await assertPipelineColumnForOrg(input.pipelineColumnId, deal.organizationId);
 
   const sourceColumnId = deal.pipelineColumnId;
   const targetColumnId = input.pipelineColumnId;
@@ -227,6 +335,7 @@ export async function moveCard(
   const targetCount = await prisma.deal.count({
     where: { pipelineColumnId: targetColumnId, NOT: { id: cardId } },
   });
+
   const requestedPos = input.position ?? targetCount;
   const targetPos = Math.max(0, Math.min(requestedPos, targetCount));
 
@@ -236,6 +345,7 @@ export async function moveCard(
         if (sourcePos === targetPos) {
           return tx.deal.findUniqueOrThrow({ where: { id: cardId } });
         }
+
         if (targetPos < sourcePos) {
           await tx.deal.updateMany({
             where: {
@@ -255,6 +365,7 @@ export async function moveCard(
             data: { position: { decrement: 1 } },
           });
         }
+
         return tx.deal.update({
           where: { id: cardId },
           data: { position: targetPos },
@@ -285,16 +396,64 @@ export async function moveCard(
         },
       });
     });
+
+    if (!(sameColumn && sourcePos === targetPos)) {
+      await createPipelineLog({
+        organizationId: updated.organizationId,
+        userId,
+        dealId: updated.id,
+        action: PipelineLogAction.DEAL_MOVED,
+        description: `Moveu a negociação "${updated.title}" de "${deal.pipelineColumn.title}" para "${targetColumn.title}".`,
+        fromColumnId: deal.pipelineColumn.id,
+        toColumnId: targetColumn.id,
+        fromColumnName: deal.pipelineColumn.title,
+        toColumnName: targetColumn.title,
+        previousValue: String(sourcePos),
+        newValue: String(targetPos),
+        metadata: {
+          dealId: updated.id,
+          title: updated.title,
+          fromPosition: sourcePos,
+          toPosition: targetPos,
+          sameColumn,
+        },
+      });
+    }
+
     return toPublicCard(updated);
   } catch (e: unknown) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
       throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
     }
+
     throw e;
   }
 }
 
 export async function deleteCard(userId: string, cardId: string): Promise<void> {
+  const deal = await prisma.deal.findFirst({
+    where: {
+      id: cardId,
+      organization: {
+        members: {
+          some: { userId },
+        },
+      },
+    },
+    include: {
+      pipelineColumn: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+    },
+  });
+
+  if (!deal) {
+    throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
+  }
+
   const deleted = await prisma.deal.deleteMany({
     where: {
       id: cardId,
@@ -309,4 +468,22 @@ export async function deleteCard(userId: string, cardId: string): Promise<void> 
   if (deleted.count !== 1) {
     throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
   }
+
+  await createPipelineLog({
+    organizationId: deal.organizationId,
+    userId,
+    dealId: null,
+    action: PipelineLogAction.DEAL_DELETED,
+    description: `Excluiu a negociação "${deal.title}" da coluna "${deal.pipelineColumn.title}".`,
+    fromColumnId: deal.pipelineColumn.id,
+    fromColumnName: deal.pipelineColumn.title,
+    previousValue: deal.title,
+    metadata: {
+      deletedDealId: deal.id,
+      title: deal.title,
+      position: deal.position,
+      pipelineColumnId: deal.pipelineColumnId,
+      pipelineColumnTitle: deal.pipelineColumn.title,
+    },
+  });
 }

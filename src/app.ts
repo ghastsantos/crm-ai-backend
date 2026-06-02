@@ -13,6 +13,7 @@ import { authRoutes } from '@/modules/auth/auth.routes';
 import { cardsRoutes } from '@/modules/cards/cards.routes';
 import { organizationsRoutes } from '@/modules/organizations/organizations.routes';
 import { pipelineColumnsRoutes } from '@/modules/pipeline-columns/pipeline-columns.routes';
+import { pipelineLogsRoutes } from '@/modules/pipeline-logs/pipeline-logs.routes';
 import { apiDocsRouter } from '@/config/swagger';
 
 const app = express();
@@ -28,6 +29,7 @@ app.use(
     contentSecurityPolicy: false,
   })
 );
+
 app.use(
   cors({
     origin: env.CORS_ORIGINS.split(',')
@@ -36,6 +38,7 @@ app.use(
     credentials: true,
   })
 );
+
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -65,6 +68,8 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/cards', cardsRoutes);
 app.use('/api/v1/organizations', organizationsRoutes);
 app.use('/api/v1/pipeline-columns', pipelineColumnsRoutes);
+app.use('/api/v1/pipeline-logs', pipelineLogsRoutes);
+
 if (env.API_DOCS_ENABLED) {
   app.use('/api-docs', apiDocsRouter);
 }

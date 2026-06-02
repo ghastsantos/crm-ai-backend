@@ -12,6 +12,18 @@ enum OrganizationRole {
   MEMBER
 }
 
+enum PipelineLogAction {
+  DEAL_CREATED
+  DEAL_MOVED
+  DEAL_UPDATED
+  DEAL_ARCHIVED
+  DEAL_DELETED
+  OWNER_CHANGED
+  COLUMN_CREATED
+  COLUMN_UPDATED
+  COLUMN_DELETED
+}
+
 model HealthCheck {
   id        String   @id @default(cuid())
   checkedAt DateTime @default(now())
@@ -25,7 +37,8 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  memberships OrganizationMember[]
+  memberships  OrganizationMember[]
+  pipelineLogs PipelineLog[]
 }
 
 model Organization {
@@ -38,6 +51,7 @@ model Organization {
   contacts        Contact[]
   deals           Deal[]
   pipelineColumns PipelineColumn[]
+  pipelineLogs    PipelineLog[]
 }
 
 model OrganizationMember {
@@ -64,6 +78,9 @@ model PipelineColumn {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   deals        Deal[]
+
+  logsFrom PipelineLog[] @relation("PipelineLogFromColumn")
+  logsTo   PipelineLog[] @relation("PipelineLogToColumn")
 
   @@unique([organizationId, position])
   @@index([organizationId])
@@ -104,7 +121,39 @@ model Deal {
   contact        Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
   pipelineColumn PipelineColumn @relation(fields: [pipelineColumnId], references: [id], onDelete: Restrict)
 
+  pipelineLogs PipelineLog[]
+
   @@index([organizationId])
   @@index([pipelineColumnId])
   @@index([pipelineColumnId, position])
+}
+
+model PipelineLog {
+  id             String            @id @default(cuid())
+  organizationId String
+  userId         String?
+  dealId         String?
+  action         PipelineLogAction
+  description    String
+  fromColumnId   String?
+  toColumnId     String?
+  fromColumnName String?
+  toColumnName   String?
+  previousValue  String?
+  newValue       String?
+  metadata       Json?
+  createdAt      DateTime          @default(now())
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  deal         Deal?           @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  fromColumn   PipelineColumn? @relation("PipelineLogFromColumn", fields: [fromColumnId], references: [id], onDelete: SetNull)
+  toColumn     PipelineColumn? @relation("PipelineLogToColumn", fields: [toColumnId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([dealId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([organizationId, createdAt])
 }

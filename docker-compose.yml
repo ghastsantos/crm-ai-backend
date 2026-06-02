@@ -1,22 +1,26 @@
-# Postgres só para desenvolvimento local. A porta fica em 127.0.0.1 para não expor o serviço
-# na LAN (o mapeamento "5432:5432" aceita conexões de qualquer interface).
-# Em produção use um serviço gerido ou compose sem publicar porta no host.
+# Postgres apenas para desenvolvimento local.
+# A porta fica presa em 127.0.0.1 para não expor o serviço na rede local.
+# Em produção, use um banco gerenciado ou não publique a porta no host.
+
 services:
   postgres:
     image: postgres:15-alpine
     container_name: crm-ai-postgres
     restart: unless-stopped
+
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-crm}
-      # Defina POSTGRES_PASSWORD no .env (não commitar); o valor por defeito é só para dev rápido
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crm}
       POSTGRES_DB: ${POSTGRES_DB:-crm_ai}
+
     ports:
       - "127.0.0.1:5433:5432"
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
       interval: 5s
       timeout: 5s
       retries: 5
