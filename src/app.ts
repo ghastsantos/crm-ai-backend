@@ -15,7 +15,7 @@ import { organizationsRoutes } from '@/modules/organizations/organizations.route
 import { pipelineColumnsRoutes } from '@/modules/pipeline-columns/pipeline-columns.routes';
 import { pipelineLogsRoutes } from '@/modules/pipeline-logs/pipeline-logs.routes';
 import { apiDocsRouter } from '@/config/swagger';
-
+import { autoriaNotesRoutes } from '@/modules/autoria-notes/autoria-notes.routes';
 const app = express();
 
 if (env.TRUST_PROXY_HOPS > 0) {
@@ -69,7 +69,7 @@ app.use('/api/v1/cards', cardsRoutes);
 app.use('/api/v1/organizations', organizationsRoutes);
 app.use('/api/v1/pipeline-columns', pipelineColumnsRoutes);
 app.use('/api/v1/pipeline-logs', pipelineLogsRoutes);
-
+app.use('/api/v1/autoria-notes', autoriaNotesRoutes);
 if (env.API_DOCS_ENABLED) {
   app.use('/api-docs', apiDocsRouter);
 }
