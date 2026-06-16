@@ -16,6 +16,7 @@ import { pipelineColumnsRoutes } from '@/modules/pipeline-columns/pipeline-colum
 import { pipelineLogsRoutes } from '@/modules/pipeline-logs/pipeline-logs.routes';
 import { apiDocsRouter } from '@/config/swagger';
 import { autoriaNotesRoutes } from '@/modules/autoria-notes/autoria-notes.routes';
+import { membersRoutes } from '@/modules/members/members.routes';
 const app = express();
 
 if (env.TRUST_PROXY_HOPS > 0) {
@@ -62,7 +63,7 @@ app.use(pinoHttp({ logger }));
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
-
+app.use('/api/v1/members', membersRoutes);
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/cards', cardsRoutes);
@@ -70,6 +71,7 @@ app.use('/api/v1/organizations', organizationsRoutes);
 app.use('/api/v1/pipeline-columns', pipelineColumnsRoutes);
 app.use('/api/v1/pipeline-logs', pipelineLogsRoutes);
 app.use('/api/v1/autoria-notes', autoriaNotesRoutes);
+
 if (env.API_DOCS_ENABLED) {
   app.use('/api-docs', apiDocsRouter);
 }
