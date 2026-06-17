@@ -194,14 +194,14 @@ async function handleConnectionUpdate(
   if (update.connection !== 'close') return;
 
   const statusCode = update.lastDisconnect?.error?.output?.statusCode;
+  const loggedOut = statusCode === baileys.DisconnectReason.loggedOut;
   socket = null;
   await publishInfo(options, {
     status: WhatsAppConnectionStatus.DISCONNECTED,
-    qrCode: null,
-    pairingCode: null,
+    ...(loggedOut ? { qrCode: null, pairingCode: null, connectedPhone: null } : {}),
   });
 
-  if (statusCode === baileys.DisconnectReason.loggedOut) return;
+  if (loggedOut) return;
 
   setTimeout(() => {
     if (lastOptions) {
@@ -243,7 +243,7 @@ export async function connectBaileysProvider(
   options: StartProviderOptions
 ): Promise<WhatsAppProviderConnectionInfo> {
   await startBaileysProvider(options);
-  return waitForConnectionInfo(7000);
+  return waitForConnectionInfo(20000);
 }
 
 export function getBaileysProviderInfo(): WhatsAppProviderConnectionInfo {
