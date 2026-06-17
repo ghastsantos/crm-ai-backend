@@ -14,6 +14,7 @@ import { cardsRoutes } from '@/modules/cards/cards.routes';
 import { organizationsRoutes } from '@/modules/organizations/organizations.routes';
 import { pipelineColumnsRoutes } from '@/modules/pipeline-columns/pipeline-columns.routes';
 import { pipelineLogsRoutes } from '@/modules/pipeline-logs/pipeline-logs.routes';
+import { membersRoutes } from '@/modules/members/members.routes';
 import { apiDocsRouter } from '@/config/swagger';
 
 const app = express();
@@ -69,6 +70,7 @@ app.use('/api/v1/cards', cardsRoutes);
 app.use('/api/v1/organizations', organizationsRoutes);
 app.use('/api/v1/pipeline-columns', pipelineColumnsRoutes);
 app.use('/api/v1/pipeline-logs', pipelineLogsRoutes);
+app.use('/api/v1/members', membersRoutes);
 
 if (env.API_DOCS_ENABLED) {
   app.use('/api-docs', apiDocsRouter);
