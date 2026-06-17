@@ -1,3 +1,4 @@
+import fs from 'fs/promises';
 import path from 'path';
 import pino from 'pino';
 import QRCode from 'qrcode';
@@ -11,6 +12,7 @@ type BaileysSocket = {
     on(event: string, listener: (...args: unknown[]) => void): void;
   };
   sendMessage(jid: string, content: { text: string }): Promise<unknown>;
+  end?(error?: Error): void;
   user?: {
     id?: string | null;
   } | null;
@@ -56,6 +58,7 @@ let latestInfo: WhatsAppProviderConnectionInfo = {
   connectedPhone: null,
 };
 let lastOptions: StartProviderOptions | null = null;
+let socketGeneration = 0;
 const waiters = new Set<(info: WhatsAppProviderConnectionInfo) => void>();
 
 function providerEnabled(): boolean {
@@ -66,6 +69,18 @@ function normalizePhone(value: string | null | undefined): string | null {
   const raw = value?.split('@')[0]?.split(':')[0] ?? '';
   const phone = raw.replace(/\D/g, '');
   return phone.length > 0 ? phone : null;
+}
+
+function resolveAuthFolder(): string {
+  const cwd = path.resolve(process.cwd());
+  const authFolder = path.resolve(cwd, env.WHATSAPP_AUTH_DIR);
+  const relative = path.relative(cwd, authFolder);
+
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error('WHATSAPP_AUTH_DIR must be a folder inside the backend workspace');
+  }
+
+  return authFolder;
 }
 
 async function importBaileys(): Promise<BaileysModule> {
@@ -119,8 +134,10 @@ async function createSocket(options: StartProviderOptions): Promise<WhatsAppProv
   }
 
   const baileys = await importBaileys();
-  const authFolder = path.resolve(process.cwd(), env.WHATSAPP_AUTH_DIR);
+  const authFolder = resolveAuthFolder();
   const { state, saveCreds } = await baileys.useMultiFileAuthState(authFolder);
+  const generation = socketGeneration + 1;
+  socketGeneration = generation;
 
   socket = baileys.default({
     auth: state,
@@ -141,11 +158,11 @@ async function createSocket(options: StartProviderOptions): Promise<WhatsAppProv
   });
 
   socket.ev.on('connection.update', (rawUpdate) => {
-    void handleConnectionUpdate(baileys, options, rawUpdate);
+    void handleConnectionUpdate(baileys, options, rawUpdate, generation);
   });
 
   socket.ev.on('messages.upsert', (rawEvent) => {
-    void handleMessages(options, rawEvent);
+    void handleMessages(options, rawEvent, generation);
   });
 
   return latestInfo;
@@ -154,8 +171,11 @@ async function createSocket(options: StartProviderOptions): Promise<WhatsAppProv
 async function handleConnectionUpdate(
   baileys: BaileysModule,
   options: StartProviderOptions,
-  rawUpdate: unknown
+  rawUpdate: unknown,
+  generation: number
 ): Promise<void> {
+  if (generation !== socketGeneration) return;
+
   const update = rawUpdate as {
     connection?: string;
     qr?: string;
@@ -212,7 +232,13 @@ async function handleConnectionUpdate(
   }, statusCode === baileys.DisconnectReason.restartRequired ? 500 : 2000);
 }
 
-async function handleMessages(options: StartProviderOptions, rawEvent: unknown): Promise<void> {
+async function handleMessages(
+  options: StartProviderOptions,
+  rawEvent: unknown,
+  generation: number
+): Promise<void> {
+  if (generation !== socketGeneration) return;
+
   const event = rawEvent as { messages?: unknown[]; type?: string };
   if (!Array.isArray(event.messages)) return;
 
@@ -248,6 +274,33 @@ export async function connectBaileysProvider(
 
 export function getBaileysProviderInfo(): WhatsAppProviderConnectionInfo {
   return latestInfo;
+}
+
+export async function resetBaileysProvider(options?: { clearAuth?: boolean }): Promise<void> {
+  const currentSocket = socket;
+  socketGeneration += 1;
+  socket = null;
+  startPromise = null;
+  latestInfo = {
+    status: WhatsAppConnectionStatus.DISCONNECTED,
+    qrCode: null,
+    pairingCode: null,
+    connectedPhone: null,
+  };
+  waiters.forEach((resolve) => resolve(latestInfo));
+  waiters.clear();
+
+  if (currentSocket) {
+    try {
+      currentSocket.end?.(new Error('WhatsApp connection reset'));
+    } catch (error) {
+      logger.warn({ err: error }, 'Could not close WhatsApp socket before reset');
+    }
+  }
+
+  if (options?.clearAuth) {
+    await fs.rm(resolveAuthFolder(), { recursive: true, force: true });
+  }
 }
 
 function recipientToJid(value: string): string {

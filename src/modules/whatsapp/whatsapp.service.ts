@@ -21,6 +21,7 @@ import {
 import {
   connectBaileysProvider,
   getBaileysProviderInfo,
+  resetBaileysProvider,
   sendBaileysText,
   startBaileysProvider,
   type WhatsAppProviderConnectionInfo,
@@ -561,6 +562,17 @@ export async function connectIntegration(userId: string) {
   }
 
   await assertOwner(userId, integration.organizationId);
+  await resetBaileysProvider({ clearAuth: true });
+  await prisma.whatsAppIntegration.update({
+    where: { instanceName: env.WHATSAPP_INSTANCE_NAME },
+    data: {
+      status: WhatsAppConnectionStatus.CONNECTING,
+      qrCode: null,
+      pairingCode: null,
+      connectedPhone: null,
+    },
+  });
+
   const connection = await connectBaileysProvider(providerOptions(env.WHATSAPP_INSTANCE_NAME));
 
   return prisma.whatsAppIntegration.update({
