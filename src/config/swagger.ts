@@ -14,9 +14,9 @@ const options: swaggerJsdoc.Options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'CRM AI Backend API',
+      title: 'CRM Backend API',
       version: '1.0.0',
-      description: 'API do backend principal do CRM com IA',
+      description: 'API do backend do CRM',
     },
     servers: [
       {
@@ -29,6 +29,7 @@ const options: swaggerJsdoc.Options = {
       { name: 'Auth', description: 'Authentication' },
       { name: 'Cards', description: 'Cards (Deals) management' },
       { name: 'PipelineColumns', description: 'Pipeline columns per organization' },
+      { name: 'WhatsApp', description: 'WhatsApp message intake' },
     ],
     components: {
       securitySchemes: {

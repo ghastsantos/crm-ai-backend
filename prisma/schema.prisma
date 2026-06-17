@@ -24,6 +24,25 @@ enum PipelineLogAction {
   COLUMN_DELETED
 }
 
+enum WhatsAppConnectionStatus {
+  NOT_CONFIGURED
+  CONNECTING
+  CONNECTED
+  DISCONNECTED
+}
+
+enum WhatsAppMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum WhatsAppMessageStatus {
+  RECEIVED
+  SENT
+  IGNORED
+  FAILED
+}
+
 model HealthCheck {
   id        String   @id @default(cuid())
   checkedAt DateTime @default(now())
@@ -53,6 +72,10 @@ model Organization {
   deals           Deal[]
   pipelineColumns PipelineColumn[]
   pipelineLogs    PipelineLog[]
+  whatsappIntegration WhatsAppIntegration?
+  whatsappConversations WhatsAppConversation[]
+  whatsappMessages WhatsAppMessage[]
+  products        Product[]
 }
 
 model OrganizationMember {
@@ -123,10 +146,90 @@ model Deal {
   pipelineColumn PipelineColumn @relation(fields: [pipelineColumnId], references: [id], onDelete: Restrict)
 
   pipelineLogs PipelineLog[]
+  whatsappConversations WhatsAppConversation[]
 
   @@index([organizationId])
   @@index([pipelineColumnId])
   @@index([pipelineColumnId, position])
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  price          Decimal  @db.Decimal(14, 2)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model WhatsAppIntegration {
+  id             String                   @id @default(cuid())
+  instanceName   String                   @unique
+  status         WhatsAppConnectionStatus @default(NOT_CONFIGURED)
+  qrCode         String?
+  pairingCode    String?
+  connectedPhone String?
+  lastWebhookAt  DateTime?
+  lastConnectedAt DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  organizationId String?                  @unique
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+}
+
+model WhatsAppConversation {
+  id             String   @id @default(cuid())
+  organizationId String
+  phone          String
+  contactName    String?
+  dealId         String?
+  stage          String?
+  summary        String?
+  nextStep       String?
+  lastReply      String?
+  lastMessageAt  DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deal         Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  messages     WhatsAppMessage[]
+
+  @@unique([organizationId, phone])
+  @@index([organizationId])
+  @@index([dealId])
+  @@index([lastMessageAt])
+}
+
+model WhatsAppMessage {
+  id                String                   @id @default(cuid())
+  organizationId    String
+  conversationId    String?
+  externalMessageId String                   @unique
+  direction         WhatsAppMessageDirection
+  status            WhatsAppMessageStatus    @default(RECEIVED)
+  phone             String
+  contactName       String?
+  text              String
+  analysis          Json?
+  responseText      String?
+  error             String?
+  createdAt         DateTime                 @default(now())
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversation WhatsAppConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([conversationId])
+  @@index([createdAt])
 }
 
 model PipelineLog {

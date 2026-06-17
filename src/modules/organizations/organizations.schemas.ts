@@ -1,3 +1,4 @@
+import { OrganizationRole } from '@prisma/client';
 import { z } from 'zod';
 
 export const organizationIdParamsSchema = z.object({
@@ -18,6 +19,14 @@ export const updateOrganizationBodySchema = z
     message: 'At least one field must be provided for update',
   });
 
+export const createOrganizationUserBodySchema = z.object({
+  email: z.string().email().max(320),
+  password: z.string().min(8).max(128),
+  name: z.string().min(1).max(200).trim(),
+  role: z.nativeEnum(OrganizationRole).default(OrganizationRole.MEMBER),
+});
+
 export type OrganizationIdParams = z.infer<typeof organizationIdParamsSchema>;
 export type CreateOrganizationBody = z.infer<typeof createOrganizationBodySchema>;
 export type UpdateOrganizationBody = z.infer<typeof updateOrganizationBodySchema>;
+export type CreateOrganizationUserBody = z.infer<typeof createOrganizationUserBodySchema>;

@@ -31,9 +31,14 @@ describe.skipIf(!process.env.DATABASE_URL)('Pipeline columns with database', () 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     const cols = res.body.data as { position: number; title: string }[];
-    expect(cols.length).toBe(6);
-    expect(cols[0].position).toBe(0);
-    expect(cols[0].title).toBe('Lead captado');
+    expect(cols.map((c) => c.title)).toEqual([
+      'Lead',
+      'Qualificação',
+      'Em negociação',
+      'Fechamento',
+      'Não fechou',
+    ]);
+    expect(cols.map((c) => c.position)).toEqual([0, 1, 2, 3, 4]);
   });
 
   it('creates and deletes an empty column', async () => {

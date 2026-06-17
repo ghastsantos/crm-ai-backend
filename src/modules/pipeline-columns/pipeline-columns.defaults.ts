@@ -6,12 +6,11 @@ type TransactionClient = Omit<
 >;
 
 export const DEFAULT_PIPELINE_COLUMN_SEED = [
-  { position: 0, title: 'Lead captado' },
-  { position: 1, title: 'Qualificação (MQL/ICP)' },
-  { position: 2, title: 'Contato inicial' },
-  { position: 3, title: 'Proposta' },
-  { position: 4, title: 'Negociação' },
-  { position: 5, title: 'Fechamento' },
+  { position: 0, title: 'Lead' },
+  { position: 1, title: 'Qualificação' },
+  { position: 2, title: 'Em negociação' },
+  { position: 3, title: 'Fechamento' },
+  { position: 4, title: 'Não fechou' },
 ] as const;
 
 export async function seedDefaultPipelineColumnsForOrganization(

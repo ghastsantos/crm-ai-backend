@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AppError, ValidationError } from '@/shared/errors';
 import {
   createOrganizationBodySchema,
+  createOrganizationUserBodySchema,
   organizationIdParamsSchema,
   updateOrganizationBodySchema,
 } from './organizations.schemas';
@@ -69,4 +70,28 @@ export async function deleteOrganization(req: Request, res: Response): Promise<v
 
   await organizationsService.deleteOrganization(userId, paramsParsed.data.id);
   res.status(204).send();
+}
+
+export async function postOrganizationUser(req: Request, res: Response): Promise<void> {
+  const userId = req.auth?.userId;
+  if (!userId) {
+    throw new AppError(401, 'UNAUTHORIZED', 'Authentication required');
+  }
+
+  const paramsParsed = organizationIdParamsSchema.safeParse(req.params);
+  if (!paramsParsed.success) {
+    throw new ValidationError('Validation failed', paramsParsed.error.flatten());
+  }
+
+  const bodyParsed = createOrganizationUserBodySchema.safeParse(req.body);
+  if (!bodyParsed.success) {
+    throw new ValidationError('Validation failed', bodyParsed.error.flatten());
+  }
+
+  const user = await organizationsService.createOrganizationUser(
+    userId,
+    paramsParsed.data.id,
+    bodyParsed.data
+  );
+  res.status(201).json({ success: true, data: user });
 }

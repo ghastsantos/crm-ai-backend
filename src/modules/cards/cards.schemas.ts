@@ -10,7 +10,7 @@ export const createCardBodySchema = z.object({
   contactName: z.string().max(200).trim().optional(),
   email: z.string().email().max(320).optional(),
   phone: z.string().max(50).trim().optional(),
-  notes: z.string().max(500).trim().optional(),
+  notes: z.string().max(2000).trim().optional(),
 });
 
 export const updateCardBodySchema = z
@@ -23,7 +23,7 @@ export const updateCardBodySchema = z
     contactName: z.string().max(200).trim().optional().nullable(),
     email: z.string().email().max(320).optional().nullable(),
     phone: z.string().max(50).trim().optional().nullable(),
-    notes: z.string().max(500).trim().optional().nullable(),
+    notes: z.string().max(2000).trim().optional().nullable(),
   })
   .refine((body) => Object.keys(body).length > 0, {
     message: 'At least one field must be provided for update',

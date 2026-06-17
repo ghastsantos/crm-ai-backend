@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { isCorsOriginAllowed, parseCorsOrigins } from '@/config/cors';
 import { env } from '@/config/env';
 import { AppError } from '@/shared/errors';
 
@@ -18,10 +19,9 @@ export function verifyMutationOrigin(req: Request, _res: Response, next: NextFun
     next(new AppError(403, 'MISSING_ORIGIN', 'Origin header is required for this request'));
     return;
   }
-  const allowed = env.CORS_ORIGINS.split(',')
-    .map((o) => o.trim())
-    .filter((o) => o.length > 0);
-  if (!allowed.includes(origin)) {
+  const allowed = parseCorsOrigins(env.CORS_ORIGINS);
+
+  if (!isCorsOriginAllowed(origin, allowed, env.NODE_ENV)) {
     next(new AppError(403, 'FORBIDDEN_ORIGIN', 'Origin is not allowed'));
     return;
   }
