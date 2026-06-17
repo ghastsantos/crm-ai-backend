@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { AppError, ValidationError } from '@/shared/errors';
 import {
   createMemberBodySchema,
@@ -9,9 +9,11 @@ import * as membersService from './members.service';
 
 function requireUserId(req: Request): string {
   const userId = req.auth?.userId;
+
   if (!userId) {
     throw new AppError(401, 'UNAUTHORIZED', 'Authentication required');
   }
+
   return userId;
 }
 
@@ -39,7 +41,7 @@ export async function postMember(req: Request, res: Response): Promise<void> {
   res.status(201).json({ success: true, data: member });
 }
 
-export async function deleteMember(req: Request, res: Response): Promise<void> {
+export async function deleteMemberById(req: Request, res: Response): Promise<void> {
   const userId = requireUserId(req);
   const parsed = memberIdParamsSchema.safeParse(req.params);
 
@@ -47,6 +49,6 @@ export async function deleteMember(req: Request, res: Response): Promise<void> {
     throw new ValidationError('Validation failed', parsed.error.flatten());
   }
 
-  await membersService.deleteMember(userId, parsed.data.id);
+  await membersService.deleteMember(userId, parsed.data.memberId);
   res.status(204).send();
 }

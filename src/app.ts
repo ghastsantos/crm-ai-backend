@@ -27,7 +27,6 @@ if (env.TRUST_PROXY_HOPS > 0) {
   app.set('trust proxy', env.TRUST_PROXY_HOPS);
 }
 
-// Security
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -59,16 +58,11 @@ app.use(
 );
 
 app.use(cookieParser());
-
-// Body parsing
 app.use(express.json({ limit: '100kb' }));
 
 app.use('/api/v1', verifyMutationOrigin);
-
-// Logging
 app.use(pinoHttp({ logger }));
 
-// Routes
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
@@ -87,7 +81,6 @@ if (env.API_DOCS_ENABLED) {
   app.use('/api-docs', apiDocsRouter);
 }
 
-// Error handler (must be last)
 app.use(errorHandler);
 
 export { app };

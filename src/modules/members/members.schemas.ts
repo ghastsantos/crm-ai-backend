@@ -7,14 +7,14 @@ export const listMembersQuerySchema = z.object({
 
 export const createMemberBodySchema = z.object({
   organizationId: z.string().min(1),
-  name: z.string().min(1).max(200).trim(),
-  email: z.string().email().max(320),
+  name: z.string().trim().min(1).max(200),
+  email: z.string().trim().email().max(320),
   password: z.string().min(8).max(128),
   role: z.nativeEnum(OrganizationRole).default(OrganizationRole.MEMBER),
 });
 
 export const memberIdParamsSchema = z.object({
-  id: z.string().min(1),
+  memberId: z.string().min(1),
 });
 
 export type ListMembersQuery = z.infer<typeof listMembersQuerySchema>;
