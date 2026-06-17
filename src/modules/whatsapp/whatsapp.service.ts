@@ -5,7 +5,7 @@ import {
   WhatsAppMessageDirection,
   WhatsAppMessageStatus,
 } from '@prisma/client';
-import { env } from '@/config/env';
+import { env, getWhatsappAllowedNumbers } from '@/config/env';
 import { prisma } from '@/infrastructure/database/prisma';
 import { createPipelineLog } from '@/modules/pipeline-logs/pipeline-logs.service';
 import {
@@ -111,8 +111,7 @@ function parseAllowedWhatsAppNumbers(value: string): Set<string> {
 }
 
 export function isPhoneAllowedForAutomaticWhatsApp(phone: string): boolean {
-  const rawAllowedNumbers = process.env.WHATSAPP_ALLOWED_NUMBERS ?? env.WHATSAPP_ALLOWED_NUMBERS;
-  const allowedNumbers = parseAllowedWhatsAppNumbers(rawAllowedNumbers);
+  const allowedNumbers = parseAllowedWhatsAppNumbers(getWhatsappAllowedNumbers());
 
   if (allowedNumbers.size === 0) return true;
   return allowedNumbers.has(normalizePhone(phone));

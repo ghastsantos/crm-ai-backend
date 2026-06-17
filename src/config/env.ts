@@ -79,3 +79,7 @@ const envSchema = z
 export type Env = z.infer<typeof envSchema>;
 
 export const env = envSchema.parse(process.env);
+
+export function getWhatsappAllowedNumbers(): string {
+  return process.env.WHATSAPP_ALLOWED_NUMBERS ?? env.WHATSAPP_ALLOWED_NUMBERS;
+}
