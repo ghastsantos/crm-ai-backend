@@ -1,8 +1,15 @@
+import bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/infrastructure/database/prisma';
 import { AppError } from '@/shared/errors';
 import { seedDefaultPipelineColumnsForOrganization } from '@/modules/pipeline-columns/pipeline-columns.defaults';
-import type { CreateOrganizationBody, UpdateOrganizationBody } from './organizations.schemas';
+import type {
+  CreateOrganizationBody,
+  CreateOrganizationUserBody,
+  UpdateOrganizationBody,
+} from './organizations.schemas';
+
+const BCRYPT_ROUNDS = 12;
 
 export interface PublicOrganization {
   id: string;
@@ -11,6 +18,19 @@ export interface PublicOrganization {
   role: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface PublicOrganizationUser {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+  membership: {
+    id: string;
+    role: string;
+    organizationId: string;
+  };
 }
 
 function toPublicOrganization(
@@ -113,6 +133,60 @@ export async function deleteOrganization(userId: string, organizationId: string)
   } catch (e: unknown) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
       throw new AppError(404, 'ORGANIZATION_NOT_FOUND', 'Organization not found');
+    }
+    throw e;
+  }
+}
+
+export async function createOrganizationUser(
+  ownerUserId: string,
+  organizationId: string,
+  input: CreateOrganizationUserBody
+): Promise<PublicOrganizationUser> {
+  await assertOwner(ownerUserId, organizationId);
+
+  const email = input.email.toLowerCase().trim();
+  const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+
+  try {
+    const { user, membership } = await prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          email,
+          passwordHash,
+          name: input.name,
+        },
+      });
+
+      const createdMembership = await tx.organizationMember.create({
+        data: {
+          userId: createdUser.id,
+          organizationId,
+          role: input.role,
+        },
+      });
+
+      return {
+        user: createdUser,
+        membership: createdMembership,
+      };
+    });
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      membership: {
+        id: membership.id,
+        role: membership.role,
+        organizationId: membership.organizationId,
+      },
+    };
+  } catch (e: unknown) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+      throw new AppError(409, 'EMAIL_ALREADY_IN_USE', 'Email is already registered');
     }
     throw e;
   }

@@ -1,11 +1,12 @@
 {
   "name": "crm-ai-backend",
   "version": "1.0.0",
-  "description": "Backend principal do CRM com IA - Node.js/Express/Prisma",
+  "description": "Backend do CRM - Node.js/Express/Prisma",
   "main": "dist/server.js",
   "scripts": {
     "prepare": "husky",
-    "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/server.ts",
+    "dev": "node scripts/dev-port.cjs",
+    "dev:raw": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/server.ts",
     "build": "tsc && tsc-alias -p tsconfig.json",
     "start": "node dist/server.js",
     "test": "vitest run",
@@ -32,6 +33,7 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@types/cookie-parser": "^1.4.10",
+    "baileys": "^7.0.0-rc13",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -43,6 +45,7 @@
     "pino": "^9.5.0",
     "pino-http": "^10.3.0",
     "prisma": "^5.22.0",
+    "qrcode": "^1.5.4",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "zod": "^4.3.6"
@@ -53,6 +56,7 @@
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.9.0",
+    "@types/qrcode": "^1.5.6",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.6",
     "@typescript-eslint/eslint-plugin": "^8.14.0",
@@ -73,7 +77,7 @@
     "vitest": "^2.1.6"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "lint-staged": {
     "src/**/*.ts": [

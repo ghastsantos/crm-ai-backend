@@ -2,9 +2,14 @@ import { app } from './app';
 import { env } from '@/config/env';
 import { logger } from '@/config/logger';
 import { prisma } from '@/infrastructure/database/prisma';
+import { startConfiguredWhatsAppIntegration } from '@/modules/whatsapp/whatsapp.service';
 
 const server = app.listen(env.PORT, () => {
   logger.info({ port: env.PORT }, 'Server started');
+  void startConfiguredWhatsAppIntegration().catch((err) => {
+    logger.warn({ err }, 'Could not start WhatsApp integration');
+  });
+
   if (env.NODE_ENV === 'production') {
     if (env.API_DOCS_ENABLED) {
       logger.warn(

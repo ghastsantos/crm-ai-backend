@@ -325,7 +325,10 @@ export async function moveCard(
     throw new AppError(404, 'CARD_NOT_FOUND', 'Card not found');
   }
 
-  const targetColumn = await assertPipelineColumnForOrg(input.pipelineColumnId, deal.organizationId);
+  const targetColumn = await assertPipelineColumnForOrg(
+    input.pipelineColumnId,
+    deal.organizationId
+  );
 
   const sourceColumnId = deal.pipelineColumnId;
   const targetColumnId = input.pipelineColumnId;

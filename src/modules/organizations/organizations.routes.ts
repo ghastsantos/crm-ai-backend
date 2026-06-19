@@ -57,6 +57,56 @@ organizationsRoutes.post('/', authenticate, asyncHandler(organizationsController
 
 /**
  * @openapi
+ * /api/v1/organizations/{id}/users:
+ *   post:
+ *     summary: Create a user in the organization
+ *     tags: [Organizations]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password, name]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               password:
+ *                 type: string
+ *                 minLength: 8
+ *               name:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *                 enum: [OWNER, MEMBER]
+ *     responses:
+ *       201:
+ *         description: User created and linked
+ *       400:
+ *         description: Validation error
+ *       403:
+ *         description: Only owner can create users
+ *       409:
+ *         description: Email already in use
+ */
+organizationsRoutes.post(
+  '/:id/users',
+  authenticate,
+  asyncHandler(organizationsController.postOrganizationUser)
+);
+
+/**
+ * @openapi
  * /api/v1/organizations/{id}:
  *   patch:
  *     summary: Update organization (OWNER only)

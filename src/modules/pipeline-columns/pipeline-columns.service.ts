@@ -5,6 +5,7 @@ import type {
   ListPipelineColumnsQuery,
   UpdatePipelineColumnBody,
 } from './pipeline-columns.schemas';
+import { MAX_PIPELINE_COLUMNS, MIN_PIPELINE_COLUMNS } from './pipeline-columns.defaults';
 
 export interface PublicPipelineColumn {
   id: string;
@@ -59,6 +60,18 @@ export async function createPipelineColumn(
   input: CreatePipelineColumnBody
 ): Promise<PublicPipelineColumn> {
   await assertMember(userId, input.organizationId);
+  const columnCount = await prisma.pipelineColumn.count({
+    where: { organizationId: input.organizationId },
+  });
+
+  if (columnCount >= MAX_PIPELINE_COLUMNS) {
+    throw new AppError(
+      400,
+      'PIPELINE_COLUMN_LIMIT_REACHED',
+      `Pipeline can have at most ${MAX_PIPELINE_COLUMNS} columns`
+    );
+  }
+
   const maxAgg = await prisma.pipelineColumn.aggregate({
     where: { organizationId: input.organizationId },
     _max: { position: true },
@@ -139,6 +152,18 @@ export async function deletePipelineColumn(
     throw new AppError(404, 'COLUMN_NOT_FOUND', 'Pipeline column not found');
   }
   await assertMember(userId, existing.organizationId);
+
+  const columnCount = await prisma.pipelineColumn.count({
+    where: { organizationId: existing.organizationId },
+  });
+
+  if (columnCount <= MIN_PIPELINE_COLUMNS) {
+    throw new AppError(
+      400,
+      'PIPELINE_COLUMN_MINIMUM_REACHED',
+      `Pipeline must keep at least ${MIN_PIPELINE_COLUMNS} columns`
+    );
+  }
 
   const dealCount = await prisma.deal.count({
     where: { pipelineColumnId: columnId },

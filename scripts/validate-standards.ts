@@ -1,7 +1,6 @@
 /* eslint-disable no-console -- CLI: saída para o utilizador */
 /**
- * Valida padrões de arquitetura, escrita e segurança alinhados a `.cursor/rules/`
- * (project-standards, api-modules, shared-infra, prisma-database).
+ * Valida padrões de arquitetura, escrita e segurança do projeto.
  *
  * Regras de negócio em si (invariantes do domínio) exigem testes; aqui validamos
  * a estrutura e convenções que as suportam (módulos, Prisma, env, API, Swagger).
@@ -358,7 +357,7 @@ function checkErrorHandlerShape(): void {
   }
 }
 
-console.log('[validate-standards] A verificar .cursor/rules (project-standards, api-modules, shared-infra, prisma-database)...\n');
+console.log('[validate-standards] A verificar padrões do projeto...\n');
 
 checkModuleStructure();
 checkNoConsoleLog(SRC_DIR);
@@ -383,7 +382,7 @@ if (errors.length > 0) {
     }
     console.error('');
   }
-  console.error('Corrija as violações acima (ver .cursor/rules/).\n');
+  console.error('Corrija as violações acima.\n');
   process.exit(1);
 }
 

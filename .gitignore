@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.npm-cache/
 
 # Build output
 dist/
@@ -9,6 +10,7 @@ build/
 .env
 .env.local
 .env.*.local
+.data/
 
 # Logs
 logs/

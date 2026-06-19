@@ -1,240 +1,92 @@
-# CRM AI Backend
+# CRM Backend
 
-Backend principal do CRM com IA. Arquitetura baseada em serviços com Node.js, Express, Prisma e TypeScript.
+API do CRM em Node.js, Express, Prisma e PostgreSQL.
 
-## Stack
+## O que tem
 
-- **Runtime:** Node.js 18+
-- **Linguagem:** TypeScript
-- **Framework:** Express
-- **ORM:** Prisma
-- **Banco:** PostgreSQL
-- **Testes:** Vitest + Supertest
-- **Documentação:** Swagger/OpenAPI
+- Autenticação com JWT
+- Organizações e usuários por organização
+- Pipeline de negociações com colunas configuráveis
+- Cards de negociação com valor, contato, telefone, observações e datas
+- Histórico de alterações do pipeline
+- Integração real com WhatsApp via Baileys/WhatsApp Web
+- Chatbot com Gemini para responder clientes e atualizar o pipeline
 
-## Pré-requisitos
+## Integração WhatsApp
 
-- Node.js 18+
-- Docker e Docker Compose (para PostgreSQL)
-- DBeaver ou outra ferramenta para gestão do banco (opcional)
+O projeto usa uma instância global do WhatsApp Web com Baileys. O fluxo é:
 
----
+1. O admin vincula uma organização à instância global.
+2. O backend gera um QR code pelo Baileys.
+3. O atendente escaneia o QR code com o WhatsApp.
+4. O Gemini analisa a conversa, o CRM cria/atualiza/move o card e o backend responde o cliente no WhatsApp.
 
-## Início rápido (novo colaborador)
+As etapas usadas pelo bot são:
 
-### 1. Clonar e instalar
+- Lead
+- Qualificação
+- Em negociação
+- Fechamento
+- Não fechou
+
+Sem `GEMINI_API_KEY`, a API usa um fallback local simples para não travar o fluxo.
+
+## Requisitos
+
+- Node.js 20+
+- Docker e Docker Compose para PostgreSQL
+
+## Rodar localmente
 
 ```bash
-git clone <url-do-repo>
-cd crm-ai-backend
 npm install
-```
-
-O `npm install` configura automaticamente o Husky (hooks de pre-commit).
-
-### 2. Configurar ambiente
-
-```bash
 cp .env.example .env
-# Edite .env: DATABASE_URL, JWT_SECRET (≥32 chars), CORS_ORIGINS, etc.
-```
-
-**`DATABASE_URL` e Docker:** o `docker-compose.yml` mapeia o Postgres para **`127.0.0.1:5433`** no host (não use `localhost:5432` a menos que o Postgres esteja mesmo nessa porta). Utilizador / base por defeito: `crm` / `crm_ai` (ou os que definires em `POSTGRES_*` no `.env`).
-
-### 3. Subir o banco de dados
-
-```bash
 docker compose up -d
-```
-
-### 4. Rodar migrações
-
-```bash
 npm run db:migrate
-```
-
-### 5. Iniciar o servidor
-
-```bash
 npm run dev
 ```
 
-A API estará em `http://localhost:3000`. Swagger em `http://localhost:3000/api-docs`.
+A API fica em `http://localhost:3000`.
 
----
+Se a porta estiver ocupada, o `npm run dev` pergunta outra porta no terminal. Para deixar uma porta fixa, altere `PORT` no `.env`.
 
-## Fluxo de desenvolvimento
+Para conectar WhatsApp, configure no `.env`:
 
-### Antes de commitar
-
-O **Husky** roda automaticamente:
-
-**Pre-commit** (em cada `git commit`):
-1. **lint-staged** executa em arquivos staged em `src/**/*.ts`:
-   - ESLint com `--fix`
-   - Prettier com `--write`
-2. Se falhar, o commit é bloqueado. Corrija os erros e tente novamente.
-
-**Pre-push** (em cada `git push`):
-1. **validate** — valida padrões do projeto (estrutura de módulos, sem console.log, etc.)
-2. **test** — executa a suíte de testes
-3. Se falhar, o push é bloqueado.
-
-Para validar manualmente antes de commitar:
-
-```bash
-npm run lint
-npm run test
+```env
+WHATSAPP_PROVIDER=baileys
+WHATSAPP_INSTANCE_NAME=crm-global
+WHATSAPP_AUTH_DIR=.data/baileys-auth
+WHATSAPP_AUTO_START=true
+GEMINI_API_KEY=sua-chave-gemini
 ```
 
-### Ao fazer push
-
-Quando você faz `git push`, o **GitHub Actions** (CI) roda automaticamente **no GitHub** — não na sua máquina. Ele clona o repositório, instala dependências e executa:
-
-1. **Lint** — verifica se o código segue as regras (ESLint)
-2. **Validate** — valida padrões do projeto (estrutura de módulos, sem console.log, aliases)
-3. **Prisma generate** — gera o client do banco
-4. **Migrations** — aplica migrações no PostgreSQL do CI
-5. **Testes** — roda a suíte de testes
-6. **Build** — compila o TypeScript
-
-Se tudo passar, o PR ou o push fica com status verde. Se algo falhar, o status fica vermelho e você pode ver o log em **Actions** no GitHub. Nesse caso: corrija o problema na sua máquina, commite e faça push de novo — o CI roda novamente.
-
-### Fluxo recomendado
-
-```bash
-# 1. Criar branch
-git checkout -b feat/nome-da-feature
-
-# 2. Desenvolver
-npm run dev
-
-# 3. Commitar (Husky valida automaticamente)
-git add .
-git commit -m "feat(escopo): descrição"
-
-# 4. Push e abrir PR
-git push origin feat/nome-da-feature
-```
-
-Use [Conventional Commits](https://www.conventionalcommits.org/): `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
-
-### Descrição do PR (com Cursor)
-
-Antes de criar o PR no GitHub, você pode pedir ao Cursor para gerar a descrição com base nas alterações:
-
-1. Faça commit das alterações
-2. No Cursor, peça: *"Gera uma descrição de PR para o branch atual comparado com main"*
-3. Copie a descrição gerada
-4. Dê push e, ao criar o PR no GitHub, cole a descrição no campo
-
----
-
-## Desenvolvimento assistido (.cursor/)
-
-O projeto usa Cursor com Rules, Subagents e Skills para padronizar o desenvolvimento.
-
-### Rules (regras automáticas)
-
-Regras que o agent aplica ao editar código:
-
-| Arquivo | Quando aplica |
-|---------|---------------|
-| `project-standards.mdc` | Sempre (padrões gerais) |
-| `prisma-database.mdc` | Ao editar `prisma/**` ou `**/database/**` |
-| `api-modules.mdc` | Ao editar `src/modules/**` |
-| `tests.mdc` | Ao editar `tests/**` |
-| `shared-infra.mdc` | Ao editar `src/shared/**` ou `src/infrastructure/**` |
-
-### Subagents (especialistas)
-
-Use para tarefas complexas. Invocação explícita: `/nome-do-subagent` ou "Use o subagent X para...".
-
-| Subagent | Quando usar |
-|----------|-------------|
-| `/prisma-specialist` | Alterar schema, criar migrações, otimizar queries |
-| `/api-module-builder` | Criar endpoints, CRUDs, refatorar módulos |
-| `/test-specialist` | Escrever/corrigir testes, aumentar cobertura |
-| `/integration-specialist` | Integrar EvolutionAPI, serviço de IA |
-| `/verifier` | Validar trabalho concluído (rodar testes, build) |
-| `/debugger` | Analisar erros, stack traces, bugs |
-
-### Skills (workflows rápidos)
-
-Workflows acionáveis via `/` ou automaticamente quando relevantes:
-
-| Skill | Quando usar |
-|-------|-------------|
-| `/conventional-commit` | Gerar mensagem de commit |
-| `/create-crud-module` | Criar módulo CRUD completo |
-| `/add-swagger-docs` | Documentar endpoints no Swagger |
-| `/run-migration` | Criar e executar migrações Prisma |
-
-### Estrutura do .cursor/
-
-```
-.cursor/
-├── rules/       # Regras por contexto
-├── agents/      # Subagents especializados
-├── skills/     # Workflows reutilizáveis
-└── plans/      # Planos de implementação
-```
-
----
+A pasta `WHATSAPP_AUTH_DIR` guarda a sessão do WhatsApp. Não apague essa pasta se quiser evitar escanear o QR code de novo.
 
 ## Scripts
 
-| Script | Descrição |
-|--------|-----------|
-| `npm run dev` | Servidor em modo desenvolvimento com hot-reload |
-| `npm run build` | Compila TypeScript para `dist/` |
-| `npm run start` | Inicia o servidor (após build) |
-| `npm run test` | Executa testes |
-| `npm run test:coverage` | Testes com relatório de cobertura |
-| `npm run lint` | Verifica código com ESLint |
-| `npm run lint:fix` | ESLint com correção automática |
-| `npm run validate` | Valida padrões do projeto (estrutura, convenções) |
-| `npm run db:migrate` | Executa migrações Prisma |
-| `npm run db:studio` | Abre Prisma Studio |
-| `npm run db:generate` | Regenera Prisma Client |
+| Comando | Descrição |
+| --- | --- |
+| `npm run dev` | Inicia a API em desenvolvimento |
+| `npm run build` | Compila TypeScript |
+| `npm run test` | Roda testes |
+| `npm run lint` | Roda ESLint |
+| `npm run validate` | Valida padrões básicos do projeto |
+| `npm run db:migrate` | Roda migrações Prisma |
+| `npm run db:generate` | Gera o Prisma Client |
 
----
-
-## Endpoints
+## Principais rotas
 
 | Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/health` | Liveness (sem dependências) |
-| GET | `/api/v1/health` | Readiness (com verificação de DB) |
-| POST | `/api/v1/auth/register` | Cadastro (utilizador + organização) |
-| POST | `/api/v1/auth/login` | Login (JWT no body) |
-| GET | `/api/v1/auth/me` | Utilizador atual (Bearer JWT) |
-| GET | `/api-docs` | Documentação Swagger |
-
----
-
-## Estrutura do projeto
-
-```
-src/
-├── config/          # Configurações (env, logger, swagger)
-├── modules/         # Módulos por domínio (routes, controller, service)
-│   ├── auth/
-│   └── health/
-├── shared/          # Código transversal
-│   ├── errors/
-│   ├── middlewares/
-│   ├── types/
-│   └── utils/
-├── infrastructure/  # Banco, integrações
-├── app.ts
-└── server.ts
-```
-
----
-
-## Serviço de IA
-
-O serviço de IA (Python/FastAPI) é um **projeto separado**.
-
----
+| --- | --- | --- |
+| `POST` | `/api/v1/auth/register` | Cria usuário e organização |
+| `POST` | `/api/v1/auth/login` | Login |
+| `GET` | `/api/v1/auth/me` | Usuário atual |
+| `GET` | `/api/v1/cards` | Lista cards |
+| `POST` | `/api/v1/cards` | Cria card |
+| `PATCH` | `/api/v1/cards/:id/move` | Move card |
+| `GET` | `/api/v1/pipeline-columns` | Lista colunas |
+| `POST` | `/api/v1/organizations/:id/users` | Cria usuário na organização |
+| `GET` | `/api/v1/whatsapp/integration` | Status da integração WhatsApp |
+| `POST` | `/api/v1/whatsapp/integration/setup` | Vincula a organização à instância global |
+| `POST` | `/api/v1/whatsapp/integration/connect` | Gera QR/pairing para conectar o número |
+| `GET` | `/api/v1/whatsapp/conversations` | Lista conversas recebidas |
