@@ -43,6 +43,14 @@ enum WhatsAppMessageStatus {
   FAILED
 }
 
+enum OrganizationPixKeyType {
+  CPF
+  CNPJ
+  PHONE
+  EMAIL
+  RANDOM
+}
+
 model HealthCheck {
   id        String   @id @default(cuid())
   checkedAt DateTime @default(now())
@@ -64,18 +72,21 @@ model Organization {
   id        String   @id @default(cuid())
   name      String
   niche     String
+  pixKey    String?
+  pixKeyType OrganizationPixKeyType?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members         OrganizationMember[]
-  contacts        Contact[]
-  deals           Deal[]
-  pipelineColumns PipelineColumn[]
-  pipelineLogs    PipelineLog[]
-  whatsappIntegration WhatsAppIntegration?
-  whatsappConversations WhatsAppConversation[]
-  whatsappMessages WhatsAppMessage[]
-  products        Product[]
+  members                 OrganizationMember[]
+  contacts                Contact[]
+  deals                   Deal[]
+  pipelineColumns         PipelineColumn[]
+  pipelineLogs            PipelineLog[]
+  whatsappIntegration     WhatsAppIntegration?
+  whatsappConversations   WhatsAppConversation[]
+  whatsappMessages        WhatsAppMessage[]
+  whatsappRoutingSessions WhatsAppRoutingSession[]
+  products                Product[]
 }
 
 model OrganizationMember {
@@ -145,7 +156,7 @@ model Deal {
   contact        Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
   pipelineColumn PipelineColumn @relation(fields: [pipelineColumnId], references: [id], onDelete: Restrict)
 
-  pipelineLogs PipelineLog[]
+  pipelineLogs          PipelineLog[]
   whatsappConversations WhatsAppConversation[]
 
   @@index([organizationId])
@@ -170,23 +181,39 @@ model Product {
 }
 
 model WhatsAppIntegration {
-  id             String                   @id @default(cuid())
-  instanceName   String                   @unique
-  status         WhatsAppConnectionStatus @default(NOT_CONFIGURED)
-  qrCode         String?
-  pairingCode    String?
-  connectedPhone String?
-  lastWebhookAt  DateTime?
+  id              String                   @id @default(cuid())
+  instanceName    String                   @unique
+  status          WhatsAppConnectionStatus @default(NOT_CONFIGURED)
+  qrCode          String?
+  pairingCode     String?
+  connectedPhone  String?
+  lastWebhookAt   DateTime?
   lastConnectedAt DateTime?
-  createdAt      DateTime                 @default(now())
-  updatedAt      DateTime                 @updatedAt
-  organizationId String?                  @unique
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  organizationId  String?                  @unique
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 }
 
+model WhatsAppRoutingSession {
+  id                     String    @id @default(cuid())
+  connectedPhone         String
+  leadPhone              String
+  selectedOrganizationId String?
+  lastPromptAt           DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  selectedOrganization Organization? @relation(fields: [selectedOrganizationId], references: [id], onDelete: SetNull)
+
+  @@unique([connectedPhone, leadPhone])
+  @@index([selectedOrganizationId])
+  @@index([updatedAt])
+}
+
 model WhatsAppConversation {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   organizationId String
   phone          String
   contactName    String?
@@ -196,11 +223,11 @@ model WhatsAppConversation {
   nextStep       String?
   lastReply      String?
   lastMessageAt  DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  deal         Deal?        @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deal         Deal?             @relation(fields: [dealId], references: [id], onDelete: SetNull)
   messages     WhatsAppMessage[]
 
   @@unique([organizationId, phone])
@@ -214,6 +241,7 @@ model WhatsAppMessage {
   organizationId    String
   conversationId    String?
   externalMessageId String                   @unique
+  dedupeKey         String?                  @unique
   direction         WhatsAppMessageDirection
   status            WhatsAppMessageStatus    @default(RECEIVED)
   phone             String

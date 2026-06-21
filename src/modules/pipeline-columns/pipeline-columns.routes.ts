@@ -36,41 +36,6 @@ pipelineColumnsRoutes.get(
 
 /**
  * @openapi
- * /api/v1/pipeline-columns:
- *   post:
- *     summary: Create a pipeline column
- *     tags: [PipelineColumns]
- *     security:
- *       - bearerAuth: []
- *       - cookieAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [organizationId, title]
- *             properties:
- *               organizationId:
- *                 type: string
- *               title:
- *                 type: string
- *     responses:
- *       201:
- *         description: Column created
- *       400:
- *         description: Validation error
- *       403:
- *         description: Access denied
- */
-pipelineColumnsRoutes.post(
-  '/',
-  authenticate,
-  asyncHandler(pipelineColumnsController.postPipelineColumn)
-);
-
-/**
- * @openapi
  * /api/v1/pipeline-columns/{id}:
  *   patch:
  *     summary: Update a pipeline column

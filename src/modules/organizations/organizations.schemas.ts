@@ -1,4 +1,4 @@
-import { OrganizationRole } from '@prisma/client';
+import { OrganizationPixKeyType, OrganizationRole } from '@prisma/client';
 import { z } from 'zod';
 
 export const organizationIdParamsSchema = z.object({
@@ -14,6 +14,13 @@ export const updateOrganizationBodySchema = z
   .object({
     name: z.string().min(1).max(200).trim().optional(),
     niche: z.string().min(1).max(120).trim().optional(),
+    pixKey: z
+      .preprocess(
+        (value) => (value === '' ? null : value),
+        z.union([z.string().min(1).max(200).trim(), z.null()])
+      )
+      .optional(),
+    pixKeyType: z.nativeEnum(OrganizationPixKeyType).nullable().optional(),
   })
   .refine((body) => Object.keys(body).length > 0, {
     message: 'At least one field must be provided for update',

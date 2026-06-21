@@ -22,6 +22,7 @@ import { apiDocsRouter } from '@/config/swagger';
 
 const app = express();
 const corsOrigins = parseCorsOrigins(env.CORS_ORIGINS);
+const shouldLogHttpRequests = env.LOG_LEVEL === 'debug' || env.LOG_LEVEL === 'trace';
 
 if (env.TRUST_PROXY_HOPS > 0) {
   app.set('trust proxy', env.TRUST_PROXY_HOPS);
@@ -61,7 +62,17 @@ app.use(cookieParser());
 app.use(express.json({ limit: '100kb' }));
 
 app.use('/api/v1', verifyMutationOrigin);
-app.use(pinoHttp({ logger }));
+app.use(
+  pinoHttp({
+    logger,
+    autoLogging: shouldLogHttpRequests,
+    customLogLevel(_req, res, error) {
+      if (error || res.statusCode >= 500) return 'error';
+      if (res.statusCode >= 400) return 'warn';
+      return 'info';
+    },
+  })
+);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });

@@ -54,8 +54,6 @@ export function analyzeWhatsAppMessage(message: string): WhatsAppMessageAnalysis
       'aceito',
       'quero contratar',
       'contrato',
-      'pix',
-      'pagamento',
     ])
   ) {
     return {
@@ -63,6 +61,29 @@ export function analyzeWhatsAppMessage(message: string): WhatsAppMessageAnalysis
       summary: 'O cliente aceitou a proposta e está pronto para fechar.',
       nextStep: 'Enviar os dados finais e confirmar pagamento ou assinatura.',
       suggestedReply: 'Perfeito. Vou separar os próximos passos para concluirmos.',
+    };
+  }
+
+  if (
+    hasAny(text, [
+      'pix',
+      'pagamento',
+      'paguei',
+      'comprovante',
+      'boleto',
+      'cartao',
+      'transferencia',
+      '[imagem recebida]',
+      '[video recebido]',
+      '[arquivo recebido]',
+    ])
+  ) {
+    return {
+      stage: 'EM_NEGOCIACAO',
+      summary: 'Cliente escolheu forma de pagamento ou enviou um comprovante para conferencia.',
+      nextStep: 'Conferir o pagamento antes de marcar a negociacao como fechada.',
+      suggestedReply:
+        'Recebi por aqui. Vou conferir as informacoes do pagamento e ja te aviso o proximo passo.',
     };
   }
 

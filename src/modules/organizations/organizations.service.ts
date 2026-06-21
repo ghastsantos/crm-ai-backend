@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { Prisma } from '@prisma/client';
+import { OrganizationPixKeyType, Prisma } from '@prisma/client';
 import { prisma } from '@/infrastructure/database/prisma';
 import { AppError } from '@/shared/errors';
 import { seedDefaultPipelineColumnsForOrganization } from '@/modules/pipeline-columns/pipeline-columns.defaults';
@@ -15,6 +15,8 @@ export interface PublicOrganization {
   id: string;
   name: string;
   niche: string;
+  pixKey: string | null;
+  pixKeyType: OrganizationPixKeyType | null;
   role: string;
   createdAt: Date;
   updatedAt: Date;
@@ -38,6 +40,8 @@ function toPublicOrganization(
     id: string;
     name: string;
     niche: string;
+    pixKey: string | null;
+    pixKeyType: OrganizationPixKeyType | null;
     createdAt: Date;
     updatedAt: Date;
   },
@@ -47,6 +51,8 @@ function toPublicOrganization(
     id: org.id,
     name: org.name,
     niche: org.niche,
+    pixKey: org.pixKey,
+    pixKeyType: org.pixKeyType,
     role,
     createdAt: org.createdAt,
     updatedAt: org.updatedAt,
@@ -109,6 +115,9 @@ export async function updateOrganization(
   const data: Prisma.OrganizationUpdateInput = {};
   if (input.name !== undefined) data.name = input.name;
   if (input.niche !== undefined) data.niche = input.niche;
+  if (input.pixKey !== undefined) data.pixKey = input.pixKey;
+  if (input.pixKeyType !== undefined) data.pixKeyType = input.pixKeyType;
+  if (input.pixKey === null) data.pixKeyType = null;
 
   try {
     const updated = await prisma.organization.update({

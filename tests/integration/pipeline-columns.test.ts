@@ -42,24 +42,25 @@ describe.skipIf(!process.env.DATABASE_URL)('Pipeline columns with database', () 
     expect(cols.map((c) => c.position)).toEqual([0, 1, 2, 3, 4]);
   });
 
-  it('creates and deletes an optional sixth empty column', async () => {
+  it('does not expose an endpoint to create optional columns', async () => {
     const { token, organizationId } = await registerAndLogin();
     const create = await request(app)
       .post('/api/v1/pipeline-columns')
       .set('Authorization', `Bearer ${token}`)
       .send({ organizationId, title: 'Retorno' });
 
-    expect(create.status).toBe(201);
-    const id = create.body.data.id as string;
+    expect(create.status).toBe(404);
 
-    const del = await request(app)
-      .delete(`/api/v1/pipeline-columns/${id}`)
+    const list = await request(app)
+      .get('/api/v1/pipeline-columns')
+      .query({ organizationId })
       .set('Authorization', `Bearer ${token}`);
 
-    expect(del.status).toBe(204);
+    expect(list.status).toBe(200);
+    expect(list.body.data).toHaveLength(5);
   });
 
-  it('keeps the pipeline between five and six stages', async () => {
+  it('keeps the default five stages protected', async () => {
     const { token, organizationId } = await registerAndLogin();
 
     const before = await request(app)
@@ -74,20 +75,52 @@ describe.skipIf(!process.env.DATABASE_URL)('Pipeline columns with database', () 
 
     expect(deleteDefault.status).toBe(400);
     expect(deleteDefault.body.error.code).toBe('PIPELINE_COLUMN_MINIMUM_REACHED');
+  });
 
-    const createSixth = await request(app)
-      .post('/api/v1/pipeline-columns')
+  it('does not allow renaming or reordering the default stages', async () => {
+    const { token, organizationId } = await registerAndLogin();
+
+    const before = await request(app)
+      .get('/api/v1/pipeline-columns')
+      .query({ organizationId })
+      .set('Authorization', `Bearer ${token}`);
+
+    const firstColumnId = before.body.data[0].id as string;
+    const secondColumnId = before.body.data[1].id as string;
+
+    const rename = await request(app)
+      .patch(`/api/v1/pipeline-columns/${firstColumnId}`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ organizationId, title: 'Retorno' });
+      .send({ title: 'Custom lead' });
 
-    expect(createSixth.status).toBe(201);
-
-    const createSeventh = await request(app)
-      .post('/api/v1/pipeline-columns')
+    const reorder = await request(app)
+      .patch(`/api/v1/pipeline-columns/${secondColumnId}`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ organizationId, title: 'Pós-venda' });
+      .send({ position: 0 });
 
-    expect(createSeventh.status).toBe(400);
-    expect(createSeventh.body.error.code).toBe('PIPELINE_COLUMN_LIMIT_REACHED');
+    expect(rename.status).toBe(400);
+    expect(rename.body.error.code).toBe('PIPELINE_COLUMNS_FIXED');
+    expect(reorder.status).toBe(400);
+    expect(reorder.body.error.code).toBe('PIPELINE_COLUMNS_FIXED');
+
+    const after = await request(app)
+      .get('/api/v1/pipeline-columns')
+      .query({ organizationId })
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(after.status).toBe(200);
+    expect(
+      (after.body.data as { id: string; position: number; title: string }[]).map((column) => ({
+        id: column.id,
+        position: column.position,
+        title: column.title,
+      }))
+    ).toEqual(
+      (before.body.data as { id: string; position: number; title: string }[]).map((column) => ({
+        id: column.id,
+        position: column.position,
+        title: column.title,
+      }))
+    );
   });
 });

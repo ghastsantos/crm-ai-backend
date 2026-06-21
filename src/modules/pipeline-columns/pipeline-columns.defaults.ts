@@ -6,7 +6,6 @@ type TransactionClient = Omit<
 >;
 
 export const MIN_PIPELINE_COLUMNS = 5;
-export const MAX_PIPELINE_COLUMNS = 6;
 
 export const DEFAULT_PIPELINE_COLUMN_SEED = [
   { position: 0, title: 'Lead' },

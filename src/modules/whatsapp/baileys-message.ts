@@ -58,10 +58,20 @@ function readText(message: Record<string, unknown>): string | undefined {
   const image = readRecord(unwrapped.imageMessage);
   const imageCaption = readString(image?.caption);
   if (imageCaption) return imageCaption;
+  if (image) return '[imagem recebida]';
 
   const video = readRecord(unwrapped.videoMessage);
   const videoCaption = readString(video?.caption);
   if (videoCaption) return videoCaption;
+  if (video) return '[video recebido]';
+
+  const document = readRecord(unwrapped.documentMessage);
+  const documentCaption = readString(document?.caption);
+  if (documentCaption) return documentCaption;
+  if (document) return '[arquivo recebido]';
+
+  const audio = readRecord(unwrapped.audioMessage);
+  if (audio) return '[audio recebido]';
 
   const button = readRecord(unwrapped.buttonsResponseMessage);
   const buttonText = readString(button?.selectedDisplayText);
@@ -91,7 +101,8 @@ export function parseBaileysMessage(
   if (!remoteJid || !id || !text) return null;
   if (isIgnoredJid(remoteJid)) return null;
 
-  const phone = phoneFromJid(remoteJidAlt) || phoneFromJid(participantAlt) || phoneFromJid(remoteJid);
+  const phone =
+    phoneFromJid(remoteJidAlt) || phoneFromJid(participantAlt) || phoneFromJid(remoteJid);
   if (phone.length < 8) return null;
 
   return {

@@ -11,12 +11,27 @@ export const setupWhatsAppIntegrationBodySchema = z.object({
   organizationId: z.string().min(1),
 });
 
+export const whatsappIntegrationQuerySchema = z.object({
+  organizationId: z.string().min(1),
+});
+
+export const connectWhatsAppIntegrationBodySchema = z.object({
+  organizationId: z.string().min(1),
+});
+
+export const disconnectWhatsAppIntegrationBodySchema = z.object({
+  organizationId: z.string().min(1),
+});
+
 export const listWhatsAppConversationsQuerySchema = z.object({
   organizationId: z.string().min(1),
 });
 
 export type ReceiveWhatsAppMessageBody = z.infer<typeof receiveWhatsAppMessageBodySchema>;
 export type SetupWhatsAppIntegrationBody = z.infer<typeof setupWhatsAppIntegrationBodySchema>;
-export type ListWhatsAppConversationsQuery = z.infer<
-  typeof listWhatsAppConversationsQuerySchema
+export type WhatsAppIntegrationQuery = z.infer<typeof whatsappIntegrationQuerySchema>;
+export type ConnectWhatsAppIntegrationBody = z.infer<typeof connectWhatsAppIntegrationBodySchema>;
+export type DisconnectWhatsAppIntegrationBody = z.infer<
+  typeof disconnectWhatsAppIntegrationBodySchema
 >;
+export type ListWhatsAppConversationsQuery = z.infer<typeof listWhatsAppConversationsQuerySchema>;

@@ -49,17 +49,41 @@ const dynamicImport = new Function('specifier', 'return import(specifier)') as (
 
 const silentLogger = pino({ level: 'silent' });
 
-let socket: BaileysSocket | null = null;
-let startPromise: Promise<WhatsAppProviderConnectionInfo> | null = null;
-let latestInfo: WhatsAppProviderConnectionInfo = {
-  status: WhatsAppConnectionStatus.NOT_CONFIGURED,
-  qrCode: null,
-  pairingCode: null,
-  connectedPhone: null,
+type ProviderState = {
+  socket: BaileysSocket | null;
+  startPromise: Promise<WhatsAppProviderConnectionInfo> | null;
+  latestInfo: WhatsAppProviderConnectionInfo;
+  lastOptions: StartProviderOptions | null;
+  socketGeneration: number;
+  waiters: Set<(info: WhatsAppProviderConnectionInfo) => void>;
 };
-let lastOptions: StartProviderOptions | null = null;
-let socketGeneration = 0;
-const waiters = new Set<(info: WhatsAppProviderConnectionInfo) => void>();
+
+const providerStates = new Map<string, ProviderState>();
+
+function initialProviderInfo(): WhatsAppProviderConnectionInfo {
+  return {
+    status: WhatsAppConnectionStatus.NOT_CONFIGURED,
+    qrCode: null,
+    pairingCode: null,
+    connectedPhone: null,
+  };
+}
+
+function getProviderState(instanceName: string): ProviderState {
+  const existing = providerStates.get(instanceName);
+  if (existing) return existing;
+
+  const created: ProviderState = {
+    socket: null,
+    startPromise: null,
+    latestInfo: initialProviderInfo(),
+    lastOptions: null,
+    socketGeneration: 0,
+    waiters: new Set<(info: WhatsAppProviderConnectionInfo) => void>(),
+  };
+  providerStates.set(instanceName, created);
+  return created;
+}
 
 function providerEnabled(): boolean {
   return env.WHATSAPP_PROVIDER === 'baileys';
@@ -71,16 +95,35 @@ function normalizePhone(value: string | null | undefined): string | null {
   return phone.length > 0 ? phone : null;
 }
 
-function resolveAuthFolder(): string {
+function assertWorkspaceFolder(folder: string): void {
   const cwd = path.resolve(process.cwd());
-  const authFolder = path.resolve(cwd, env.WHATSAPP_AUTH_DIR);
-  const relative = path.relative(cwd, authFolder);
+  const relative = path.relative(cwd, folder);
 
   if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
     throw new Error('WHATSAPP_AUTH_DIR must be a folder inside the backend workspace');
   }
+}
 
-  return authFolder;
+function safeInstanceFolderName(instanceName: string): string {
+  return instanceName.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+function resolveAuthFolder(instanceName: string): string {
+  const cwd = path.resolve(process.cwd());
+  const baseFolder = path.resolve(cwd, env.WHATSAPP_AUTH_DIR);
+  assertWorkspaceFolder(baseFolder);
+
+  if (instanceName === env.WHATSAPP_INSTANCE_NAME) {
+    return baseFolder;
+  }
+
+  const instanceFolder = path.join(
+    path.dirname(baseFolder),
+    `${path.basename(baseFolder)}-${safeInstanceFolderName(instanceName)}`
+  );
+  assertWorkspaceFolder(instanceFolder);
+
+  return instanceFolder;
 }
 
 async function importBaileys(): Promise<BaileysModule> {
@@ -91,55 +134,64 @@ async function publishInfo(
   options: StartProviderOptions,
   info: Partial<WhatsAppProviderConnectionInfo>
 ): Promise<void> {
-  latestInfo = {
-    ...latestInfo,
+  const state = getProviderState(options.instanceName);
+  state.latestInfo = {
+    ...state.latestInfo,
     ...info,
   };
 
-  waiters.forEach((resolve) => resolve(latestInfo));
-  waiters.clear();
+  state.waiters.forEach((resolve) => resolve(state.latestInfo));
+  state.waiters.clear();
 
   await options.onConnectionUpdate(info).catch((error) => {
     logger.warn({ err: error }, 'Could not persist WhatsApp connection state');
   });
 }
 
-function waitForConnectionInfo(timeoutMs: number): Promise<WhatsAppProviderConnectionInfo> {
-  if (latestInfo.qrCode || latestInfo.status === WhatsAppConnectionStatus.CONNECTED) {
-    return Promise.resolve(latestInfo);
+function waitForConnectionInfo(
+  instanceName: string,
+  timeoutMs: number
+): Promise<WhatsAppProviderConnectionInfo> {
+  const state = getProviderState(instanceName);
+  if (state.latestInfo.qrCode || state.latestInfo.status === WhatsAppConnectionStatus.CONNECTED) {
+    return Promise.resolve(state.latestInfo);
   }
 
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
-      waiters.delete(resolve);
-      resolve(latestInfo);
+      state.waiters.delete(resolve);
+      resolve(state.latestInfo);
     }, timeoutMs);
 
-    waiters.add((info) => {
+    state.waiters.add((info) => {
       clearTimeout(timer);
       resolve(info);
     });
   });
 }
 
-async function createSocket(options: StartProviderOptions): Promise<WhatsAppProviderConnectionInfo> {
+async function createSocket(
+  options: StartProviderOptions
+): Promise<WhatsAppProviderConnectionInfo> {
+  const providerState = getProviderState(options.instanceName);
+
   if (!providerEnabled()) {
-    latestInfo = {
+    providerState.latestInfo = {
       status: WhatsAppConnectionStatus.CONNECTING,
       qrCode: null,
       pairingCode: null,
       connectedPhone: null,
     };
-    return latestInfo;
+    return providerState.latestInfo;
   }
 
   const baileys = await importBaileys();
-  const authFolder = resolveAuthFolder();
+  const authFolder = resolveAuthFolder(options.instanceName);
   const { state, saveCreds } = await baileys.useMultiFileAuthState(authFolder);
-  const generation = socketGeneration + 1;
-  socketGeneration = generation;
+  const generation = providerState.socketGeneration + 1;
+  providerState.socketGeneration = generation;
 
-  socket = baileys.default({
+  providerState.socket = baileys.default({
     auth: state,
     logger: silentLogger,
     browser: ['CRM AI', 'Chrome', '1.0.0'],
@@ -153,19 +205,19 @@ async function createSocket(options: StartProviderOptions): Promise<WhatsAppProv
     pairingCode: null,
   });
 
-  socket.ev.on('creds.update', () => {
+  providerState.socket.ev.on('creds.update', () => {
     void saveCreds();
   });
 
-  socket.ev.on('connection.update', (rawUpdate) => {
+  providerState.socket.ev.on('connection.update', (rawUpdate) => {
     void handleConnectionUpdate(baileys, options, rawUpdate, generation);
   });
 
-  socket.ev.on('messages.upsert', (rawEvent) => {
+  providerState.socket.ev.on('messages.upsert', (rawEvent) => {
     void handleMessages(options, rawEvent, generation);
   });
 
-  return latestInfo;
+  return providerState.latestInfo;
 }
 
 async function handleConnectionUpdate(
@@ -174,7 +226,8 @@ async function handleConnectionUpdate(
   rawUpdate: unknown,
   generation: number
 ): Promise<void> {
-  if (generation !== socketGeneration) return;
+  const state = getProviderState(options.instanceName);
+  if (generation !== state.socketGeneration) return;
 
   const update = rawUpdate as {
     connection?: string;
@@ -201,7 +254,7 @@ async function handleConnectionUpdate(
       status: WhatsAppConnectionStatus.CONNECTED,
       qrCode: null,
       pairingCode: null,
-      connectedPhone: normalizePhone(socket?.user?.id),
+      connectedPhone: normalizePhone(state.socket?.user?.id),
     });
     return;
   }
@@ -215,7 +268,7 @@ async function handleConnectionUpdate(
 
   const statusCode = update.lastDisconnect?.error?.output?.statusCode;
   const loggedOut = statusCode === baileys.DisconnectReason.loggedOut;
-  socket = null;
+  state.socket = null;
   await publishInfo(options, {
     status: WhatsAppConnectionStatus.DISCONNECTED,
     ...(loggedOut ? { qrCode: null, pairingCode: null, connectedPhone: null } : {}),
@@ -223,13 +276,16 @@ async function handleConnectionUpdate(
 
   if (loggedOut) return;
 
-  setTimeout(() => {
-    if (lastOptions) {
-      void startBaileysProvider(lastOptions).catch((error) => {
-        logger.warn({ err: error }, 'Could not restart WhatsApp provider');
-      });
-    }
-  }, statusCode === baileys.DisconnectReason.restartRequired ? 500 : 2000);
+  setTimeout(
+    () => {
+      if (state.lastOptions) {
+        void startBaileysProvider(state.lastOptions).catch((error) => {
+          logger.warn({ err: error }, 'Could not restart WhatsApp provider');
+        });
+      }
+    },
+    statusCode === baileys.DisconnectReason.restartRequired ? 500 : 2000
+  );
 }
 
 async function handleMessages(
@@ -237,14 +293,26 @@ async function handleMessages(
   rawEvent: unknown,
   generation: number
 ): Promise<void> {
-  if (generation !== socketGeneration) return;
+  const state = getProviderState(options.instanceName);
+  if (generation !== state.socketGeneration) return;
 
   const event = rawEvent as { messages?: unknown[]; type?: string };
   if (!Array.isArray(event.messages)) return;
 
+  logger.debug(
+    { instanceName: options.instanceName, count: event.messages.length, type: event.type },
+    'WhatsApp provider received message event'
+  );
+
   for (const rawMessage of event.messages) {
     const message = parseBaileysMessage(rawMessage, options.instanceName);
-    if (!message) continue;
+    if (!message) {
+      logger.debug(
+        { instanceName: options.instanceName },
+        'WhatsApp provider ignored message event'
+      );
+      continue;
+    }
 
     await options.onMessage(message).catch((error) => {
       logger.warn({ err: error, phone: message.phone }, 'Could not process WhatsApp message');
@@ -255,40 +323,45 @@ async function handleMessages(
 export async function startBaileysProvider(
   options: StartProviderOptions
 ): Promise<WhatsAppProviderConnectionInfo> {
-  lastOptions = options;
-  if (socket) return latestInfo;
-  if (!startPromise) {
-    startPromise = createSocket(options).finally(() => {
-      startPromise = null;
+  const state = getProviderState(options.instanceName);
+  state.lastOptions = options;
+  if (state.socket) return state.latestInfo;
+  if (!state.startPromise) {
+    state.startPromise = createSocket(options).finally(() => {
+      state.startPromise = null;
     });
   }
-  return startPromise;
+  return state.startPromise;
 }
 
 export async function connectBaileysProvider(
   options: StartProviderOptions
 ): Promise<WhatsAppProviderConnectionInfo> {
   await startBaileysProvider(options);
-  return waitForConnectionInfo(20000);
+  return waitForConnectionInfo(options.instanceName, 20000);
 }
 
-export function getBaileysProviderInfo(): WhatsAppProviderConnectionInfo {
-  return latestInfo;
+export function getBaileysProviderInfo(instanceName: string): WhatsAppProviderConnectionInfo {
+  return getProviderState(instanceName).latestInfo;
 }
 
-export async function resetBaileysProvider(options?: { clearAuth?: boolean }): Promise<void> {
-  const currentSocket = socket;
-  socketGeneration += 1;
-  socket = null;
-  startPromise = null;
-  latestInfo = {
+export async function resetBaileysProvider(
+  instanceName: string,
+  options?: { clearAuth?: boolean }
+): Promise<void> {
+  const state = getProviderState(instanceName);
+  const currentSocket = state.socket;
+  state.socketGeneration += 1;
+  state.socket = null;
+  state.startPromise = null;
+  state.latestInfo = {
     status: WhatsAppConnectionStatus.DISCONNECTED,
     qrCode: null,
     pairingCode: null,
     connectedPhone: null,
   };
-  waiters.forEach((resolve) => resolve(latestInfo));
-  waiters.clear();
+  state.waiters.forEach((resolve) => resolve(state.latestInfo));
+  state.waiters.clear();
 
   if (currentSocket) {
     try {
@@ -299,7 +372,7 @@ export async function resetBaileysProvider(options?: { clearAuth?: boolean }): P
   }
 
   if (options?.clearAuth) {
-    await fs.rm(resolveAuthFolder(), { recursive: true, force: true });
+    await fs.rm(resolveAuthFolder(instanceName), { recursive: true, force: true });
   }
 }
 
@@ -308,16 +381,22 @@ function recipientToJid(value: string): string {
   return `${value.replace(/\D/g, '')}@s.whatsapp.net`;
 }
 
-export async function sendBaileysText(recipient: string, text: string): Promise<void> {
+export async function sendBaileysText(
+  instanceName: string,
+  recipient: string,
+  text: string
+): Promise<void> {
   if (!providerEnabled()) return;
 
-  if (!socket && lastOptions) {
-    await startBaileysProvider(lastOptions);
+  const state = getProviderState(instanceName);
+
+  if (!state.socket && state.lastOptions) {
+    await startBaileysProvider(state.lastOptions);
   }
 
-  if (!socket) {
+  if (!state.socket) {
     throw new Error('WhatsApp provider is not connected');
   }
 
-  await socket.sendMessage(recipientToJid(recipient), { text });
+  await state.socket.sendMessage(recipientToJid(recipient), { text });
 }

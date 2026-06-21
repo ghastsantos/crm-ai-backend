@@ -55,4 +55,23 @@ describe.skipIf(!process.env.DATABASE_URL)('Organization users flow with databas
     expect(res.body.data.membership.organizationId).toBe(organizationId);
     expect(res.body.data.membership.role).toBe('MEMBER');
   });
+
+  it('lets the organization owner save one PIX key with its type for WhatsApp payments', async () => {
+    const { token, organizationId } = await registerOwner();
+
+    const update = await request(app)
+      .patch(`/api/v1/organizations/${organizationId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ pixKey: '123.456.789-00', pixKeyType: 'CPF' });
+
+    expect(update.status).toBe(200);
+    expect(update.body.data.pixKey).toBe('123.456.789-00');
+    expect(update.body.data.pixKeyType).toBe('CPF');
+
+    const me = await request(app).get('/api/v1/auth/me').set('Authorization', `Bearer ${token}`);
+
+    expect(me.status).toBe(200);
+    expect(me.body.data.memberships[0].organizationPixKey).toBe('123.456.789-00');
+    expect(me.body.data.memberships[0].organizationPixKeyType).toBe('CPF');
+  });
 });

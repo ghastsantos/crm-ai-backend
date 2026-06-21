@@ -21,4 +21,8 @@ describe('analyzeWhatsAppMessage', () => {
 
     expect(result.stage).toBe('EM_NEGOCIACAO');
   });
+  it('keeps payment method and proof messages in negotiation until payment is verified', () => {
+    expect(analyzeWhatsAppMessage('No pix').stage).toBe('EM_NEGOCIACAO');
+    expect(analyzeWhatsAppMessage('[imagem recebida]').stage).toBe('EM_NEGOCIACAO');
+  });
 });

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { randomUUID } from 'crypto';
+import jwt from 'jsonwebtoken';
 import { app } from '../../src/app';
 
 describe('Auth HTTP validation', () => {
@@ -83,6 +84,40 @@ describe.skipIf(!process.env.DATABASE_URL)('Auth flow with database', () => {
     const me = await agent.get('/api/v1/auth/me');
     expect(me.status).toBe(200);
     expect(me.body.data.email).toBe(email);
+  });
+
+  it('adds a unique JWT id on each login', async () => {
+    const id = randomUUID();
+    const email = `jti-${id}@example.com`;
+    const password = 'password123';
+
+    await request(app).post('/api/v1/auth/register').send({
+      email,
+      password,
+      name: 'JTI User',
+      organizationName: 'JTI Org',
+      organizationNiche: 'Serviços',
+    });
+
+    const first = await request(app).post('/api/v1/auth/login').send({ email, password });
+    const second = await request(app).post('/api/v1/auth/login').send({ email, password });
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+
+    const firstToken = first.body.data.token as string;
+    const secondToken = second.body.data.token as string;
+    const firstPayload = jwt.decode(firstToken) as jwt.JwtPayload;
+    const secondPayload = jwt.decode(secondToken) as jwt.JwtPayload;
+
+    expect(firstPayload.jti).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+    );
+    expect(secondPayload.jti).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+    );
+    expect(secondPayload.jti).not.toBe(firstPayload.jti);
+    expect(secondToken).not.toBe(firstToken);
   });
 
   it('POST /logout clears session cookie', async () => {
