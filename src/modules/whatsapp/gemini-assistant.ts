@@ -75,12 +75,17 @@ function formatPrice(value: string): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-  }).format(numeric);
+  })
+    .format(numeric)
+    .replace(/\u00A0/g, ' ');
 }
 
-function formatProductLine(product: NonNullable<AnalyzeConversationInput['products']>[number]) {
-  const description = product.description ? ` - ${product.description}` : '';
-  return `${product.name} (${formatPrice(product.price)})${description}`;
+function formatProductLine(
+  product: NonNullable<AnalyzeConversationInput['products']>[number],
+  index?: number
+) {
+  const prefix = index === undefined ? '' : `${index + 1}- `;
+  return `${prefix}${product.name} (${formatPrice(product.price)})`;
 }
 
 function findMentionedProduct(input: AnalyzeConversationInput) {
@@ -93,8 +98,8 @@ function productIntroReply(input: AnalyzeConversationInput): string | null {
   if (products.length === 0) return null;
 
   const intro = input.contactName ? `Ola, ${input.contactName}.` : 'Ola.';
-  const list = products.map(formatProductLine).join('; ');
-  return `${intro} Posso te ajudar sim. Hoje trabalhamos com: ${list}. Qual desses produtos te interessa mais?`;
+  const list = products.map(formatProductLine).join('\n');
+  return `${intro} Posso te ajudar sim. Estes são os produtos disponíveis:\n\n${list}\n\nQual deles te interessa?`;
 }
 
 export function parseGeminiAnalysisText(value: string): GeminiCrmAnalysis {
@@ -114,7 +119,15 @@ function buildPrompt(input: AnalyzeConversationInput): string {
     'Classifique a conversa e gere uma resposta curta, natural e profissional em portugues do Brasil.',
     'Quando houver produtos ativos, conduza o atendimento para entender qual produto o cliente quer comprar.',
     'Se o cliente ainda nao informou o produto, apresente as opcoes ativas com preco e pergunte qual interessa.',
-    'Se o cliente mencionar um produto ativo, foque nele e avance a qualificacao.',
+    'Se o cliente mencionar ou escolher um produto ativo, foque nele e avance para compra sem perguntas de qualificacao.',
+    'Pergunte sobre necessidade, uso atual ou suporte somente quando o cliente estiver confuso ou sair do caminho de compra.',
+    'Se o cliente demonstrar vontade de comprar, diga como seguir para o PIX em vez de fazer nova pergunta consultiva.',
+    'Use FECHAMENTO somente quando o pagamento ou contrato ja estiver confirmado pela empresa.',
+    'Ofereca somente pagamento via PIX. Nao ofereca boleto, cartao ou outro metodo de pagamento.',
+    'Nao peca nome completo, CPF, CNPJ, documento ou dados fiscais do cliente.',
+    'Nao diga que vai gerar uma chave PIX; a chave PIX ja esta cadastrada no CRM e sera enviada pelo sistema.',
+    'Se o cliente escolher PIX, pedir dados de pagamento, disser que pagou ou enviar comprovante/anexo, use EM_NEGOCIACAO e avise que vai conferir o pagamento.',
+    'Mensagens como [imagem recebida], [video recebido] ou [arquivo recebido] representam anexos enviados pelo cliente.',
     'Extraia campos somente quando aparecerem claramente na mensagem.',
     '',
     `Empresa: ${input.organizationName}`,
@@ -141,12 +154,12 @@ function localFallback(input: AnalyzeConversationInput): GeminiCrmAnalysis {
 
   if (mentionedProduct) {
     return {
-      stage: 'QUALIFICACAO',
+      stage: 'EM_NEGOCIACAO',
       summary: `Cliente demonstrou interesse em ${mentionedProduct.name}.`,
-      nextStep: 'Entender necessidade, prazo e confirmar se o produto atende o cliente.',
+      nextStep: 'Aguardar confirmacao de compra para enviar a chave PIX.',
       suggestedReply: `${input.contactName ? `Ola, ${input.contactName}. ` : ''}${mentionedProduct.name} custa ${formatPrice(
         mentionedProduct.price
-      )}. Me conta o que voce quer resolver para eu te orientar melhor?`,
+      )}. Para seguir com a compra, responda "quero comprar" ou "PIX" que eu te envio a chave de pagamento.`,
       fields: {
         ...(input.contactName ? { contactName: input.contactName } : {}),
         dealValue: Number(mentionedProduct.price),

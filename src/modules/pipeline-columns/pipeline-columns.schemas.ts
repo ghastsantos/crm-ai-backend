@@ -4,11 +4,6 @@ export const listPipelineColumnsQuerySchema = z.object({
   organizationId: z.string().min(1),
 });
 
-export const createPipelineColumnBodySchema = z.object({
-  organizationId: z.string().min(1),
-  title: z.string().min(1).max(200).trim(),
-});
-
 export const updatePipelineColumnBodySchema = z
   .object({
     title: z.string().min(1).max(200).trim().optional(),
@@ -27,5 +22,4 @@ export const deletePipelineColumnQuerySchema = z.object({
 });
 
 export type ListPipelineColumnsQuery = z.infer<typeof listPipelineColumnsQuerySchema>;
-export type CreatePipelineColumnBody = z.infer<typeof createPipelineColumnBodySchema>;
 export type UpdatePipelineColumnBody = z.infer<typeof updatePipelineColumnBodySchema>;

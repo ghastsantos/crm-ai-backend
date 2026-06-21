@@ -77,6 +77,30 @@ describe('parseBaileysMessage', () => {
     expect(parsed?.replyJid).toBe('554188887777@s.whatsapp.net');
   });
 
+  it('turns image messages without caption into a readable inbound event', () => {
+    const parsed = parseBaileysMessage(
+      {
+        key: {
+          id: 'IMG123',
+          fromMe: false,
+          remoteJid: '554188887777@s.whatsapp.net',
+        },
+        message: {
+          imageMessage: {
+            mimetype: 'image/jpeg',
+          },
+        },
+      },
+      'crm-global'
+    );
+
+    expect(parsed).toMatchObject({
+      externalMessageId: 'crm-global:IMG123',
+      phone: '554188887777',
+      text: '[imagem recebida]',
+    });
+  });
+
   it('ignores messages sent by the connected account', () => {
     const parsed = parseBaileysMessage(
       {
@@ -95,7 +119,7 @@ describe('parseBaileysMessage', () => {
     expect(parsed).toBeNull();
   });
 
-  it('ignores groups and messages without text', () => {
+  it('ignores groups and messages without useful content', () => {
     expect(
       parseBaileysMessage(
         {
@@ -121,7 +145,9 @@ describe('parseBaileysMessage', () => {
             remoteJid: '5541999998888@s.whatsapp.net',
           },
           message: {
-            imageMessage: {},
+            reactionMessage: {
+              text: '👍',
+            },
           },
         },
         'crm-global'

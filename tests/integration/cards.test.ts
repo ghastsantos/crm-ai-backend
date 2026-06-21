@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { randomUUID } from 'crypto';
+import { WhatsAppConnectionStatus, WhatsAppMessageDirection } from '@prisma/client';
 import { app } from '../../src/app';
+import { prisma } from '../../src/infrastructure/database/prisma';
 
 describe('Cards HTTP validation', () => {
   it('POST /api/v1/cards returns 401 without token', async () => {
@@ -184,5 +186,75 @@ describe.skipIf(!process.env.DATABASE_URL)('Cards flow with database', () => {
       .set('Authorization', `Bearer ${token2}`);
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('CARD_NOT_FOUND');
+  });
+
+  it('sends a WhatsApp payment confirmation when a deal is moved to Fechamento', async () => {
+    const { token, organizationId } = await registerAndLogin();
+    const negotiationColumnId = await columnIdByPosition(token, organizationId, 2);
+    const closingColumnId = await columnIdByPosition(token, organizationId, 3);
+    const phone = '5541999988888';
+
+    const create = await request(app)
+      .post('/api/v1/cards')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        title: 'WhatsApp - Ana',
+        organizationId,
+        value: 500,
+        pipelineColumnId: negotiationColumnId,
+        contactName: 'Ana',
+        phone,
+      });
+
+    expect(create.status).toBe(201);
+    const cardId = create.body.data.id as string;
+
+    await prisma.whatsAppIntegration.create({
+      data: {
+        organizationId,
+        instanceName: `cards-confirm-${randomUUID()}`,
+        status: WhatsAppConnectionStatus.CONNECTED,
+        connectedPhone: '554189025192',
+        lastConnectedAt: new Date(),
+      },
+    });
+
+    const conversation = await prisma.whatsAppConversation.create({
+      data: {
+        organizationId,
+        phone,
+        contactName: 'Ana',
+        dealId: cardId,
+        stage: 'EM_NEGOCIACAO',
+        summary: 'Cliente enviou comprovante.',
+        nextStep: 'Aguardar aprovacao no pipeline.',
+        lastMessageAt: new Date(),
+      },
+    });
+
+    const move = await request(app)
+      .patch(`/api/v1/cards/${cardId}/move`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ pipelineColumnId: closingColumnId });
+
+    expect(move.status).toBe(200);
+    expect(move.body.data.pipelineColumnId).toBe(closingColumnId);
+
+    const outbound = await prisma.whatsAppMessage.findFirst({
+      where: {
+        organizationId,
+        conversationId: conversation.id,
+        direction: WhatsAppMessageDirection.OUTBOUND,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    expect(outbound?.text.toLowerCase()).toContain('pagamento confirmado');
+
+    const updatedConversation = await prisma.whatsAppConversation.findUniqueOrThrow({
+      where: { id: conversation.id },
+    });
+    expect(updatedConversation.stage).toBe('FECHAMENTO');
+    expect(updatedConversation.lastReply?.toLowerCase()).toContain('pagamento confirmado');
   });
 });

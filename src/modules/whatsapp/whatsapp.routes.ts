@@ -44,11 +44,7 @@ export const whatsappRoutes = Router();
  */
 whatsappRoutes.post('/messages', authenticate, asyncHandler(whatsappController.postMessage));
 
-whatsappRoutes.get(
-  '/integration',
-  authenticate,
-  asyncHandler(whatsappController.getIntegration)
-);
+whatsappRoutes.get('/integration', authenticate, asyncHandler(whatsappController.getIntegration));
 
 whatsappRoutes.post(
   '/integration/setup',
@@ -60,6 +56,12 @@ whatsappRoutes.post(
   '/integration/connect',
   authenticate,
   asyncHandler(whatsappController.postIntegrationConnect)
+);
+
+whatsappRoutes.post(
+  '/integration/disconnect',
+  authenticate,
+  asyncHandler(whatsappController.postIntegrationDisconnect)
 );
 
 whatsappRoutes.get(

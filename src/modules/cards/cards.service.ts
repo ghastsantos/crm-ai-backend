@@ -2,7 +2,23 @@ import { PipelineLogAction, Prisma } from '@prisma/client';
 import { prisma } from '@/infrastructure/database/prisma';
 import { AppError } from '@/shared/errors';
 import { createPipelineLog } from '@/modules/pipeline-logs/pipeline-logs.service';
+import { notifyWhatsAppPaymentApprovedForDeal } from '@/modules/whatsapp/whatsapp.service';
 import type { CreateCardBody, UpdateCardBody, MoveCardBody, ListCardsQuery } from './cards.schemas';
+
+export interface PublicCardWhatsAppMessage {
+  id: string;
+  direction: string;
+  status: string;
+  text: string;
+  createdAt: Date;
+}
+
+export interface PublicCardWhatsAppConversation {
+  id: string;
+  phone: string;
+  contactName: string | null;
+  messages: PublicCardWhatsAppMessage[];
+}
 
 export interface PublicCard {
   id: string;
@@ -19,9 +35,17 @@ export interface PublicCard {
   contactId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  whatsappConversation?: PublicCardWhatsAppConversation | null;
 }
 
-function toPublicCard(deal: {
+type DealWhatsAppConversation = {
+  id: string;
+  phone: string;
+  contactName: string | null;
+  messages: PublicCardWhatsAppMessage[];
+};
+
+type DealWithOptionalWhatsAppHistory = {
   id: string;
   title: string;
   pipelineColumnId: string;
@@ -36,7 +60,25 @@ function toPublicCard(deal: {
   contactId: string | null;
   createdAt: Date;
   updatedAt: Date;
-}): PublicCard {
+  whatsappConversations?: DealWhatsAppConversation[];
+};
+
+function toPublicWhatsAppConversation(
+  conversation: DealWhatsAppConversation
+): PublicCardWhatsAppConversation {
+  return {
+    id: conversation.id,
+    phone: conversation.phone,
+    contactName: conversation.contactName,
+    messages: conversation.messages,
+  };
+}
+
+function toPublicCard(deal: DealWithOptionalWhatsAppHistory): PublicCard {
+  const whatsappConversation = deal.whatsappConversations?.[0]
+    ? toPublicWhatsAppConversation(deal.whatsappConversations[0])
+    : null;
+
   return {
     id: deal.id,
     title: deal.title,
@@ -52,6 +94,7 @@ function toPublicCard(deal: {
     contactId: deal.contactId,
     createdAt: deal.createdAt,
     updatedAt: deal.updatedAt,
+    whatsappConversation,
   };
 }
 
@@ -91,6 +134,23 @@ async function nextPositionForColumn(pipelineColumnId: string): Promise<number> 
   });
 
   return (agg._max.position ?? -1) + 1;
+}
+
+function normalizeColumnTitle(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function isClosingColumnTitle(value: string): boolean {
+  const normalized = normalizeColumnTitle(value);
+  return (
+    normalized === 'fechamento' ||
+    normalized.includes('fechamento') ||
+    normalized.includes('fechado') ||
+    normalized.includes('ganho')
+  );
 }
 
 export async function createCard(userId: string, input: CreateCardBody): Promise<PublicCard> {
@@ -166,6 +226,28 @@ export async function getCard(userId: string, cardId: string): Promise<PublicCar
       organization: {
         members: {
           some: { userId },
+        },
+      },
+    },
+    include: {
+      whatsappConversations: {
+        orderBy: { updatedAt: 'desc' },
+        take: 1,
+        select: {
+          id: true,
+          phone: true,
+          contactName: true,
+          messages: {
+            orderBy: { createdAt: 'asc' },
+            take: 50,
+            select: {
+              id: true,
+              direction: true,
+              status: true,
+              text: true,
+              createdAt: true,
+            },
+          },
         },
       },
     },
@@ -286,6 +368,14 @@ export async function updateCard(
         changedFields,
       },
     });
+
+    if (
+      newColumn &&
+      isClosingColumnTitle(newColumn.title) &&
+      !isClosingColumnTitle(deal.pipelineColumn.title)
+    ) {
+      await notifyWhatsAppPaymentApprovedForDeal(updated.id);
+    }
 
     return toPublicCard(updated);
   } catch (e: unknown) {
@@ -421,6 +511,14 @@ export async function moveCard(
           sameColumn,
         },
       });
+    }
+
+    if (
+      !sameColumn &&
+      isClosingColumnTitle(targetColumn.title) &&
+      !isClosingColumnTitle(deal.pipelineColumn.title)
+    ) {
+      await notifyWhatsAppPaymentApprovedForDeal(updated.id);
     }
 
     return toPublicCard(updated);

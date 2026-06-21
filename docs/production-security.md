@@ -73,7 +73,7 @@ Com `NODE_ENV=production`, o servidor regista **avisos** no arranque se `API_DOC
 
 ## Checklist rápido
 
-- [ ] `JWT_SECRET` forte (32+ caracteres) e rotação planead
+- [ ] `JWT_SECRET` forte, aleatório, fixo por ambiente e com rotação planejada. Ele é a chave de assinatura, não um token JWT pronto.
 - [ ] `API_DOCS_ENABLED=false` se não precisares de Swagger público
 - [ ] `AUTH_TOKEN_IN_BODY=false` se usares sessão por cookie httpOnly
 - [ ] `AUTH_ENFORCE_ORIGIN_ON_MUTATIONS=true` quando a SPA tiver origens fixas

@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import jwt, { type SignOptions } from 'jsonwebtoken';
-import { Prisma } from '@prisma/client';
+import { randomUUID } from 'crypto';
+import { OrganizationPixKeyType, Prisma } from '@prisma/client';
 import { prisma } from '@/infrastructure/database/prisma';
 import { env } from '@/config/env';
 import { AppError } from '@/shared/errors';
@@ -23,6 +24,8 @@ export interface MembershipSummary {
   organizationId: string;
   organizationName: string;
   organizationNiche: string;
+  organizationPixKey: string | null;
+  organizationPixKeyType: OrganizationPixKeyType | null;
 }
 
 export interface UserWithMemberships extends PublicUser {
@@ -34,7 +37,7 @@ function signToken(userId: string, email: string): string {
     algorithm: 'HS256',
     expiresIn: env.JWT_EXPIRES_IN as SignOptions['expiresIn'],
   };
-  return jwt.sign({ sub: userId, email }, env.JWT_SECRET, options);
+  return jwt.sign({ sub: userId, email, jti: randomUUID() }, env.JWT_SECRET, options);
 }
 
 function toPublicUser(user: {
@@ -96,6 +99,8 @@ export async function register(
           organizationId: membership.organizationId,
           organizationName: organization.name,
           organizationNiche: organization.niche,
+          organizationPixKey: organization.pixKey,
+          organizationPixKeyType: organization.pixKeyType,
         },
       ],
     };
@@ -140,6 +145,8 @@ export async function getMe(userId: string): Promise<UserWithMemberships> {
     organizationId: m.organizationId,
     organizationName: m.organization.name,
     organizationNiche: m.organization.niche,
+    organizationPixKey: m.organization.pixKey,
+    organizationPixKeyType: m.organization.pixKeyType,
   }));
 
   return {

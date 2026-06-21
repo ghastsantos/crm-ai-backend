@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_PIPELINE_COLUMN_SEED,
-  MAX_PIPELINE_COLUMNS,
   MIN_PIPELINE_COLUMNS,
 } from '@/modules/pipeline-columns/pipeline-columns.defaults';
 
@@ -15,6 +14,5 @@ describe('DEFAULT_PIPELINE_COLUMN_SEED', () => {
       { position: 4, title: 'Não fechou' },
     ]);
     expect(DEFAULT_PIPELINE_COLUMN_SEED).toHaveLength(MIN_PIPELINE_COLUMNS);
-    expect(MAX_PIPELINE_COLUMNS).toBe(6);
   });
 });

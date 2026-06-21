@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { AppError, ValidationError } from '@/shared/errors';
 import {
   listPipelineColumnsQuerySchema,
-  createPipelineColumnBodySchema,
   updatePipelineColumnBodySchema,
   pipelineColumnIdParamsSchema,
   deletePipelineColumnQuerySchema,
@@ -20,19 +19,6 @@ export async function getPipelineColumns(req: Request, res: Response): Promise<v
   }
   const columns = await pipelineColumnsService.listPipelineColumns(userId, parsed.data);
   res.status(200).json({ success: true, data: columns });
-}
-
-export async function postPipelineColumn(req: Request, res: Response): Promise<void> {
-  const userId = req.auth?.userId;
-  if (!userId) {
-    throw new AppError(401, 'UNAUTHORIZED', 'Authentication required');
-  }
-  const parsed = createPipelineColumnBodySchema.safeParse(req.body);
-  if (!parsed.success) {
-    throw new ValidationError('Validation failed', parsed.error.flatten());
-  }
-  const col = await pipelineColumnsService.createPipelineColumn(userId, parsed.data);
-  res.status(201).json({ success: true, data: col });
 }
 
 export async function patchPipelineColumn(req: Request, res: Response): Promise<void> {
