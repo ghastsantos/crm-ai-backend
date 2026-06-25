@@ -18,6 +18,7 @@ import { pipelineLogsRoutes } from '@/modules/pipeline-logs/pipeline-logs.routes
 import { membersRoutes } from '@/modules/members/members.routes';
 import { productsRoutes } from '@/modules/products/products.routes';
 import { whatsappRoutes } from '@/modules/whatsapp/whatsapp.routes';
+import { metricsRoutes } from '@/modules/metrics/metrics.routes';
 import { apiDocsRouter } from '@/config/swagger';
 
 const app = express();
@@ -76,6 +77,7 @@ app.use('/api/v1/pipeline-logs', pipelineLogsRoutes);
 app.use('/api/v1/members', membersRoutes);
 app.use('/api/v1/products', productsRoutes);
 app.use('/api/v1/whatsapp', whatsappRoutes);
+app.use('/api/v1/metrics', metricsRoutes);
 
 if (env.API_DOCS_ENABLED) {
   app.use('/api-docs', apiDocsRouter);
